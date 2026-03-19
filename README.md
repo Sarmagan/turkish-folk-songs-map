@@ -2,6 +2,8 @@
 
 An interactive map of Turkey's 81 provinces displaying regional folk songs (türküler). Built for [Türk Güncesi](https://blog.turkguncesi.com/).
 
+![Website](website_screenshot.png)
+
 ## Features
 
 - **Hover tooltips** — hover over any province to see its folk songs in a floating tooltip
