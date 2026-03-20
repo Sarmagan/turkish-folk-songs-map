@@ -2,12 +2,12 @@
  * Türkiye İnteraktif Türkü Haritası — app.js
  */
 
-/* ── 81 PROVINCES (uppercase, for membership check) ────────────────────────── */
+/* ── 81 PROVINCES ───────────────────────────────────────────────────────────── */
 const TURKISH_PROVINCES = new Set([
   "ADANA","ADIYAMAN","AFYONKARAHİSAR","AFYON","AĞRI","AKSARAY","AMASYA","ANKARA",
-  "ANTALYA","ARDAHAN","ARTVİN","AYDIN","BALIKESİR","BARTIN","BARTIN","BATMAN","BAYBURT",
-  "BİLECİK","BİNGÖL","BİTLİS","BOLU","BURDUR","BURSA","ÇANAKKALE","ÇANKIRI","ÇANKIRI",
-  "ÇORUM","DENİZLİ","DİYARBAKIR","DİYARBAKIR","DÜZCE","EDİRNE","ELAZIĞ","ERZİNCAN",
+  "ANTALYA","ARDAHAN","ARTVİN","AYDIN","BALIKESİR","BARTIN","BATMAN","BAYBURT",
+  "BİLECİK","BİNGÖL","BİTLİS","BOLU","BURDUR","BURSA","ÇANAKKALE","ÇANKIRI",
+  "ÇORUM","DENİZLİ","DİYARBAKIR","DÜZCE","EDİRNE","ELAZIĞ","ERZİNCAN",
   "ERZURUM","ESKİŞEHİR","GAZİANTEP","GİRESUN","GÜMÜŞHANE","HAKKARİ","HATAY","IĞDIR",
   "ISPARTA","İSTANBUL","İZMİR","KAHRAMANMARAŞ","K. MARAŞ","KARABÜK","KARAMAN","KARS",
   "KASTAMONU","KAYSERİ","KIRIKKALE","KIRKLARELİ","KIRŞEHİR","KİLİS","KOCAELİ","KONYA",
@@ -16,7 +16,7 @@ const TURKISH_PROVINCES = new Set([
   "ŞIRNAK","TEKİRDAĞ","TOKAT","TRABZON","TUNCELİ","UŞAK","VAN","YALOVA","YOZGAT","ZONGULDAK"
 ]);
 
-/* ── SVG NAME → PROVINCE KEY MAP ───────────────────────────────────────────── */
+/* ── SVG NAME → PROVINCE KEY ────────────────────────────────────────────────── */
 const SVG_TO_PROVINCE = {
   "Sanliurfa":"Şanlıurfa","Diyarbakir":"Diyarbakır","Izmir":"İzmir",
   "Kirsehir":"Kırşehir","Mugla":"Muğla","Kutahya":"Kütahya","Kütahya":"Kütahya",
@@ -32,14 +32,16 @@ const SVG_TO_PROVINCE = {
 
 /* ── STATE ──────────────────────────────────────────────────────────────────── */
 let songsByProvince = {};
-let allSongs = [];       // flat array of every song, used for search & random
+let allSongs        = [];
 let scale = 1, translateX = 0, translateY = 0;
-let activePanel = null;
-let searchActive = false;
-const MIN_SCALE = 0.5, MAX_SCALE = 8, ZOOM_STEP = 0.25;
+let activePanel  = null;
+let drawerOpen   = false;
+const MIN_SCALE  = 0.5, MAX_SCALE = 8, ZOOM_STEP = 0.25;
 
-/* ── DOM REFS (resolved inside DOMContentLoaded) ────────────────────────────── */
-let mapWrapper, mapContainer, tooltip, scaleBadge, selectedInfo, digerBtn, searchInput, searchClear;
+/* ── DOM REFS (set inside DOMContentLoaded) ─────────────────────────────────── */
+let mapWrapper, mapContainer, tooltip, scaleBadge,
+    selectedInfo, digerBtn, searchInput, searchClear,
+    drawerToggle, drawerBackdrop, sidePanel;
 
 /* ── HELPERS ────────────────────────────────────────────────────────────────── */
 function toTitleCase(str) {
@@ -53,14 +55,23 @@ function fmt(val) {
   return val.trim();
 }
 
+function escapeHtml(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function highlightText(text, query) {
+  const escaped = escapeHtml(text);
+  const re = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')})`, 'gi');
+  return escaped.replace(re, '<span class="search-highlight">$1</span>');
+}
+
 /* ── DATA PROCESSING ────────────────────────────────────────────────────────── */
 function processData(rawArray) {
   const grouped = {};
   rawArray.forEach(song => {
     const raw  = (song.yoresi_ili || '').trim();
     const norm = raw.toLocaleUpperCase('tr-TR');
-    const isProvince = TURKISH_PROVINCES.has(norm);
-    const key  = isProvince ? toTitleCase(raw) : 'Diğer';
+    const key  = TURKISH_PROVINCES.has(norm) ? toTitleCase(raw) : 'Diğer';
     if (!grouped[key]) grouped[key] = [];
     grouped[key].push(song);
   });
@@ -83,7 +94,7 @@ function getSongsFor(svgName) {
 }
 
 /* ── SONG CARD ──────────────────────────────────────────────────────────────── */
-function buildSongCard(song, highlightQuery = null) {
+function buildSongCard(song, highlightQuery) {
   const rows = [
     ['İlçe / Köy',    fmt(song.ilcesi_koyu)],
     ['Makam',         fmt(song.makamsal_dizi)],
@@ -105,10 +116,12 @@ function buildSongCard(song, highlightQuery = null) {
      </div>`
   ).join('');
 
+  const title = highlightQuery
+    ? highlightText(song.song_title, highlightQuery)
+    : escapeHtml(song.song_title);
+
   const lyricsHTML = fmt(song.lyrics)
-    ? `<button class="song-lyrics-toggle" onclick="this.nextElementSibling.classList.toggle('open');this.classList.toggle('open')">
-         Sözleri Göster
-       </button>
+    ? `<button class="song-lyrics-toggle" onclick="this.nextElementSibling.classList.toggle('open');this.classList.toggle('open')">Sözleri Göster</button>
        <div class="song-lyrics">${song.lyrics.replace(/\n/g, '<br>')}</div>`
     : '';
 
@@ -116,62 +129,91 @@ function buildSongCard(song, highlightQuery = null) {
     ? `<a class="song-source-link" href="${song.source_url}" target="_blank" rel="noopener noreferrer">Repertükül'de Gör ↗</a>`
     : '';
 
-  return `
-    <div class="song-card">
-      <div class="song-card-title">♩ ${highlightQuery ? highlightText(song.song_title, highlightQuery) : escapeHtml(song.song_title)}</div>
-      <div class="song-meta">${metaHTML}</div>
-      ${lyricsHTML}
-      ${linkHTML}
-    </div>`;
+  return `<div class="song-card">
+    <div class="song-card-title">♩ ${title}</div>
+    <div class="song-meta">${metaHTML}</div>
+    ${lyricsHTML}${linkHTML}
+  </div>`;
 }
 
 /* ── SIDE PANEL ─────────────────────────────────────────────────────────────── */
-function showHome() {
-  // Deactivate selected province
-  if (activePanel) { activePanel.classList.remove('active-province'); activePanel = null; }
-  digerBtn.classList.remove('active');
-  selectedInfo.innerHTML = '<p class="empty-msg">Bir ile tıklayın…</p>';
-}
-
-function updateSidePanel(svgName, songs, displayName) {
-  if (!selectedInfo) return;
+function updateSidePanel(displayName, songs) {
   const count = songs ? songs.length : 0;
-
-  let html = `
-    <div class="panel-province-header">
-      <h3>${displayName}</h3>
-      <span class="panel-count">${count} türkü</span>
-      <button class="btn-back" onclick="showHome()">← Geri</button>
-    </div>`;
-
+  let html = `<div class="panel-province-header">
+    <h3>${displayName}</h3>
+    <span class="panel-count">${count} türkü</span>
+  </div>`;
   html += count > 0
-    ? songs.map(buildSongCard).join('')
-    : `<p class="empty-msg">Bu ile ait türkü bulunamadı.</p>`;
-
+    ? songs.map(s => buildSongCard(s)).join('')
+    : '<p class="empty-msg">Bu ile ait türkü bulunamadı.</p>';
   selectedInfo.innerHTML = html;
   selectedInfo.scrollTop = 0;
+  const lbl = document.getElementById('drawer-toggle-label');
+  if (lbl) lbl.textContent = count > 0 ? `♩ ${displayName} (${count})` : `♩ ${displayName}`;
 }
 
 function showDigerPanel() {
-  if (!selectedInfo) return;
   const songs = songsByProvince['Diğer'] || [];
   if (activePanel) { activePanel.classList.remove('active-province'); activePanel = null; }
-
-  let html = `
-    <div class="panel-province-header">
-      <h3>Diğer Yöreler</h3>
-      <span class="panel-count">${songs.length} türkü</span>
-      <button class="btn-back" onclick="showHome()">← Geri</button>
-    </div>
-    <p class="diger-note">Haritada yer almayan yöreler (Rumeli, Kerkük vb.)</p>`;
-
+  digerBtn.classList.add('active');
+  let html = `<div class="panel-province-header">
+    <h3>Diğer Yöreler</h3>
+    <span class="panel-count">${songs.length} türkü</span>
+  </div>
+  <p class="diger-note">Haritada yer almayan yöreler (Rumeli, Kerkük vb.)</p>`;
   html += songs.length > 0
-    ? songs.map(buildSongCard).join('')
-    : `<p class="empty-msg">Henüz türkü eklenmedi.</p>`;
-
+    ? songs.map(s => buildSongCard(s)).join('')
+    : '<p class="empty-msg">Henüz türkü eklenmedi.</p>';
   selectedInfo.innerHTML = html;
   selectedInfo.scrollTop = 0;
-  digerBtn.classList.add('active');
+  if (window.innerWidth <= 700) openDrawer();
+}
+
+/* ── SEARCH ─────────────────────────────────────────────────────────────────── */
+function runSearch(query) {
+  if (activePanel) { activePanel.classList.remove('active-province'); activePanel = null; }
+  digerBtn.classList.remove('active');
+  const q = query.toLocaleLowerCase('tr-TR');
+  const results = allSongs.filter(s =>
+    s.song_title.toLocaleLowerCase('tr-TR').includes(q)
+  );
+  let html = `<div class="search-results-header">
+    "<strong>${escapeHtml(query)}</strong>" — <strong>${results.length}</strong> sonuç
+  </div>`;
+  html += results.length > 0
+    ? results.map(s => buildSongCard(s, query)).join('')
+    : '<p class="empty-msg">Sonuç bulunamadı.</p>';
+  selectedInfo.innerHTML = html;
+  selectedInfo.scrollTop = 0;
+}
+
+function clearSearch() {
+  selectedInfo.innerHTML = '<p class="empty-msg">Bir ile tıklayın…</p>';
+}
+
+/* ── RANDOM TÜRKÜ ────────────────────────────────────────────────────────────── */
+function showRandomSong() {
+  if (allSongs.length === 0) return;
+  const song = allSongs[Math.floor(Math.random() * allSongs.length)];
+  if (activePanel) { activePanel.classList.remove('active-province'); activePanel = null; }
+  digerBtn.classList.remove('active');
+  if (searchInput) { searchInput.value = ''; searchClear.classList.remove('visible'); }
+  // Highlight city on map
+  const svg = mapContainer.querySelector('svg');
+  if (svg) {
+    const songCity = toTitleCase((song.yoresi_ili || '').trim());
+    svg.querySelectorAll('path[name]').forEach(path => {
+      if (resolveName(path.getAttribute('name')) === songCity) {
+        activePanel = path;
+        path.classList.add('active-province');
+      }
+    });
+  }
+  const cityDisplay = toTitleCase((song.yoresi_ili || '').trim());
+  selectedInfo.innerHTML = `<div class="random-banner">🎲 Rastgele seçildi — <strong>${cityDisplay}</strong></div>
+    ${buildSongCard(song)}`;
+  selectedInfo.scrollTop = 0;
+  if (window.innerWidth <= 700) openDrawer();
 }
 
 /* ── TOOLTIP ────────────────────────────────────────────────────────────────── */
@@ -180,18 +222,15 @@ function showTooltip(svgName, cx, cy) {
   const songs       = getSongsFor(svgName);
   const count       = songs ? songs.length : 0;
   const hasData     = count > 0;
-
   tooltip.className = 'visible' + (hasData ? ' has-data-tt' : '');
-  tooltip.innerHTML = `
-    <div class="tt-header">
-      <span class="tt-city">${displayName}</span>
-      <span class="tt-count ${hasData ? '' : 'tt-count-empty'}">${hasData ? count + ' türkü' : 'türkü yok'}</span>
-    </div>
-    ${hasData
-      ? `<ul class="tt-list">${songs.slice(0, 4).map(s => `<li>${s.song_title}</li>`).join('')}
-          ${count > 4 ? `<li class="tt-more">+${count - 4} daha…</li>` : ''}</ul>`
-      : `<p class="no-data">Henüz türkü eklenmedi.</p>`}`;
-
+  tooltip.innerHTML = `<div class="tt-header">
+    <span class="tt-city">${displayName}</span>
+    <span class="tt-count ${hasData ? '' : 'tt-count-empty'}">${hasData ? count + ' türkü' : 'türkü yok'}</span>
+  </div>
+  ${hasData
+    ? `<ul class="tt-list">${songs.slice(0,4).map(s=>`<li>${escapeHtml(s.song_title)}</li>`).join('')}
+       ${count > 4 ? `<li class="tt-more">+${count-4} daha…</li>` : ''}</ul>`
+    : '<p class="no-data">Henüz türkü eklenmedi.</p>'}`;
   positionTooltip(cx, cy);
 }
 
@@ -208,7 +247,7 @@ function positionTooltip(cx, cy) {
 function hideTooltip() { tooltip.className = ''; }
 
 /* ── TRANSFORM ──────────────────────────────────────────────────────────────── */
-function applyTransform(animated = false) {
+function applyTransform(animated) {
   if (animated) {
     mapContainer.style.transition = 'transform 0.3s cubic-bezier(.4,0,.2,1)';
     requestAnimationFrame(() => {
@@ -222,7 +261,6 @@ function applyTransform(animated = false) {
   scaleBadge.textContent = `${Math.round(scale * 100)}%`;
 }
 
-/* ── ZOOM ───────────────────────────────────────────────────────────────────── */
 function zoomAt(cx, cy, ns) {
   ns = Math.max(MIN_SCALE, Math.min(MAX_SCALE, ns));
   translateX = cx - (cx - translateX) * (ns / scale);
@@ -240,92 +278,33 @@ window.addEventListener('mousemove', e => {
   translateY = dragOriginY + (e.clientY - dragStartY);
   applyTransform();
 });
-window.addEventListener('mouseup', () => { isDragging = false; if (mapContainer) mapContainer.classList.remove('dragging'); });
+window.addEventListener('mouseup', () => {
+  isDragging = false;
+  if (mapContainer) mapContainer.classList.remove('dragging');
+});
 
-
-/* ── SEARCH ──────────────────────────────────────────────────────────────────── */
-function runSearch(query) {
-  searchActive = true;
-  // Deselect active city
-  if (activePanel) { activePanel.classList.remove('active-province'); activePanel = null; }
-  digerBtn.classList.remove('active');
-
-  const q = query.toLocaleLowerCase('tr-TR');
-  const results = allSongs.filter(s =>
-    s.song_title.toLocaleLowerCase('tr-TR').includes(q)
-  );
-
-  const header = `<div class="search-results-header">
-    "<strong>${escapeHtml(query)}</strong>" için <strong>${results.length}</strong> sonuç
-  </div>`;
-
-  if (results.length === 0) {
-    selectedInfo.innerHTML = header + `<p class="empty-msg">Sonuç bulunamadı.</p>`;
-  } else {
-    selectedInfo.innerHTML = header + results.map(s => buildSongCard(s, query)).join('');
-  }
-  selectedInfo.scrollTop = 0;
+/* ── DRAWER ─────────────────────────────────────────────────────────────────── */
+function openDrawer() {
+  drawerOpen = true;
+  sidePanel.classList.add('drawer-open');
+  drawerBackdrop.classList.add('visible');
+  drawerToggle.classList.add('hidden');
 }
 
-function clearSearch() {
-  searchActive = false;
-  selectedInfo.innerHTML = '<p class="empty-msg">Bir ile tıklayın…</p>';
-}
-
-function escapeHtml(str) {
-  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-}
-
-function highlightText(text, query) {
-  const escaped = escapeHtml(text);
-  const q = escapeHtml(query);
-  const re = new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')})`, 'gi');
-  return escaped.replace(re, '<span class="search-highlight">$1</span>');
-}
-
-/* ── RANDOM TÜRKÜ ────────────────────────────────────────────────────────────── */
-function showRandomSong() {
-  if (allSongs.length === 0) return;
-  const song = allSongs[Math.floor(Math.random() * allSongs.length)];
-
-  // Highlight the province on the map
-  if (activePanel) { activePanel.classList.remove('active-province'); activePanel = null; }
-  digerBtn.classList.remove('active');
-
-  // Find and highlight the matching SVG path
-  const svg = mapContainer.querySelector('svg');
-  if (svg) {
-    svg.querySelectorAll('path[name]').forEach(path => {
-      const canonical = resolveName(path.getAttribute('name'));
-      const songCity  = toTitleCase((song.yoresi_ili || '').trim());
-      if (canonical === songCity) {
-        activePanel = path;
-        path.classList.add('active-province');
-      }
-    });
-  }
-
-  // Clear search
-  if (searchInput) { searchInput.value = ''; searchClear.classList.remove('visible'); }
-  searchActive = false;
-
-  const cityDisplay = toTitleCase((song.yoresi_ili || '').trim());
-  selectedInfo.innerHTML = `
-    <div class="random-banner">🎲 Rastgele seçildi — <strong>${cityDisplay}</strong></div>
-    ${buildSongCard(song)}`;
-  selectedInfo.scrollTop = 0;
+function closeDrawer() {
+  drawerOpen = false;
+  sidePanel.classList.remove('drawer-open');
+  drawerBackdrop.classList.remove('visible');
+  drawerToggle.classList.remove('hidden');
 }
 
 /* ── PROVINCE WIRING ────────────────────────────────────────────────────────── */
 function wireProvinces() {
   const svg = mapContainer.querySelector('svg');
   if (!svg) return;
-
   svg.querySelectorAll('path[name]').forEach(path => {
     const svgName = path.getAttribute('name');
-    const songs   = getSongsFor(svgName);
-    if (songs && songs.length) path.classList.add('has-data');
-
+    if (getSongsFor(svgName)?.length) path.classList.add('has-data');
     path.addEventListener('mouseover', e => { e.stopPropagation(); showTooltip(svgName, e.clientX, e.clientY); });
     path.addEventListener('mousemove', e => positionTooltip(e.clientX, e.clientY));
     path.addEventListener('mouseout',  () => hideTooltip());
@@ -335,56 +314,51 @@ function wireProvinces() {
       activePanel = path;
       path.classList.add('active-province');
       digerBtn.classList.remove('active');
-      updateSidePanel(svgName, songs, resolveName(svgName));
+      if (searchInput) { searchInput.value = ''; searchClear.classList.remove('visible'); }
+      const songs = getSongsFor(svgName);
+      updateSidePanel(resolveName(svgName), songs);
+      if (window.innerWidth <= 700) openDrawer();
     });
   });
 }
 
 /* ── INIT ───────────────────────────────────────────────────────────────────── */
 document.addEventListener('DOMContentLoaded', async () => {
-  // Resolve all DOM refs now that the document is ready
-  mapWrapper   = document.getElementById('map-wrapper');
-  mapContainer = document.getElementById('map-container');
-  tooltip      = document.getElementById('tooltip');
-  scaleBadge   = document.getElementById('scale-badge');
-  selectedInfo = document.getElementById('selected-info');
-  digerBtn     = document.getElementById('btn-diger');
-  searchInput  = document.getElementById('search-input');
-  searchClear  = document.getElementById('search-clear');
+  mapWrapper     = document.getElementById('map-wrapper');
+  mapContainer   = document.getElementById('map-container');
+  tooltip        = document.getElementById('tooltip');
+  scaleBadge     = document.getElementById('scale-badge');
+  selectedInfo   = document.getElementById('selected-info');
+  digerBtn       = document.getElementById('btn-diger');
+  searchInput    = document.getElementById('search-input');
+  searchClear    = document.getElementById('search-clear');
+  drawerToggle   = document.getElementById('drawer-toggle');
+  drawerBackdrop = document.getElementById('drawer-backdrop');
+  sidePanel      = document.getElementById('side-panel');
 
   // Zoom buttons
   document.getElementById('btn-zoom-in').addEventListener('click', () => {
     const r = mapWrapper.getBoundingClientRect();
-    zoomAt(r.width / 2, r.height / 2, scale + ZOOM_STEP);
-    applyTransform(true);
+    zoomAt(r.width/2, r.height/2, scale + ZOOM_STEP); applyTransform(true);
   });
   document.getElementById('btn-zoom-out').addEventListener('click', () => {
     const r = mapWrapper.getBoundingClientRect();
-    zoomAt(r.width / 2, r.height / 2, scale - ZOOM_STEP);
-    applyTransform(true);
+    zoomAt(r.width/2, r.height/2, scale - ZOOM_STEP); applyTransform(true);
   });
   document.getElementById('btn-reset').addEventListener('click', () => {
-    scale = 1; translateX = 0; translateY = 0;
-    applyTransform(true);
+    scale = 1; translateX = 0; translateY = 0; applyTransform(true);
   });
 
-  // Diğer button
+  // Panel buttons
   digerBtn.addEventListener('click', showDigerPanel);
-
-  // Random türkü button
   document.getElementById('btn-random').addEventListener('click', showRandomSong);
 
-  // Search input
+  // Search
   searchInput.addEventListener('input', () => {
     const q = searchInput.value.trim();
     searchClear.classList.toggle('visible', q.length > 0);
-    if (q.length === 0) {
-      clearSearch();
-    } else {
-      runSearch(q);
-    }
+    q.length > 0 ? runSearch(q) : clearSearch();
   });
-
   searchClear.addEventListener('click', () => {
     searchInput.value = '';
     searchClear.classList.remove('visible');
@@ -392,8 +366,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     searchInput.focus();
   });
 
+  // Drawer (mobile)
+  drawerToggle.addEventListener('click', openDrawer);
+  drawerBackdrop.addEventListener('click', closeDrawer);
+  let touchStartY = 0;
+  sidePanel.addEventListener('touchstart', e => { touchStartY = e.touches[0].clientY; }, { passive: true });
+  sidePanel.addEventListener('touchend',   e => { if (e.changedTouches[0].clientY - touchStartY > 60) closeDrawer(); }, { passive: true });
 
-  // Map pan & wheel (need mapWrapper resolved first)
+  // Map interactions
   mapWrapper.addEventListener('wheel', e => {
     e.preventDefault();
     const r = mapWrapper.getBoundingClientRect();
@@ -430,16 +410,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     const res = await fetch('songs.jsonl');
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const text = await res.text();
-    rawArray = text
-      .split('\n')
-      .map(line => line.trim())
-      .filter(line => line.length > 0)
-      .map(line => JSON.parse(line));
-    console.log(`✅ Loaded ${rawArray.length} songs from songs.jsonl`);
+    rawArray = text.split('\n').map(l => l.trim()).filter(l => l).map(l => JSON.parse(l));
+    console.log(`✅ Loaded ${rawArray.length} songs`);
   } catch (err) {
-    console.error('❌ Could not load songs.jsonl:', err.message);
-    selectedInfo.innerHTML =
-      '<p class="empty-msg" style="color:var(--accent)">songs.jsonl yüklenemedi. Dosyanın index.html ile aynı klasörde olduğundan emin olun.</p>';
+    console.error('❌ songs.jsonl yüklenemedi:', err.message);
+    selectedInfo.innerHTML = '<p class="empty-msg" style="color:var(--accent)">songs.jsonl yüklenemedi. Dosyanın index.html ile aynı klasörde olduğundan emin olun.</p>';
   }
 
   songsByProvince = processData(rawArray);

@@ -719,9 +719,117 @@ header p {
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--surface); border-radius: 3px; }
 
-/* ===== RESPONSIVE ===== */
+/* ===== DRAWER TOGGLE BUTTON (mobile only, hidden on desktop) ===== */
+#drawer-toggle {
+  display: none;
+}
+
+#drawer-backdrop {
+  display: none;
+}
+
+/* ===== RESPONSIVE — MOBILE DRAWER ===== */
 @media (max-width: 700px) {
-  #side-panel { display: none; }
-  #zoom-controls { bottom: 16px; right: 12px; }
-  #scale-badge { bottom: 16px; left: 12px; }
+
+  /* Header: smaller */
+  header { padding: 10px 14px; }
+  header h1 { font-size: 1.1rem; }
+  .header-brand { display: none; }
+
+  /* Zoom controls: reposition above the drawer button */
+  #zoom-controls { bottom: 72px; right: 12px; gap: 5px; }
+  #zoom-controls .zoom-btn { width: 36px; height: 36px; font-size: 1rem; }
+  #zoom-controls .reset-btn { height: 24px; font-size: 0.58rem; }
+  #scale-badge { bottom: 72px; left: 12px; }
+
+  /* Hint: hide on mobile to save space */
+  #hint { display: none; }
+
+  /* Side panel becomes a bottom drawer */
+  #side-panel {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    height: 75vh;
+    max-height: 75vh;
+    border-left: none;
+    border-top: 2px solid var(--surface);
+    border-radius: 16px 16px 0 0;
+    z-index: 100;
+    transform: translateY(100%);
+    transition: transform 0.35s cubic-bezier(.4,0,.2,1);
+    box-shadow: 0 -8px 40px rgba(0,0,0,0.5);
+  }
+
+  #side-panel.drawer-open {
+    transform: translateY(0);
+  }
+
+  /* Drag handle at top of drawer */
+  #side-panel::before {
+    content: '';
+    display: block;
+    width: 40px;
+    height: 4px;
+    background: rgba(255,255,255,0.2);
+    border-radius: 2px;
+    margin: 10px auto 0;
+    flex-shrink: 0;
+  }
+
+  /* Backdrop */
+  #drawer-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 99;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.35s ease;
+    backdrop-filter: blur(2px);
+  }
+
+  #drawer-backdrop.visible {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  /* Floating toggle button */
+  #drawer-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 50;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 24px;
+    padding: 11px 22px;
+    font-family: 'Lato', sans-serif;
+    font-size: 0.88rem;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 4px 20px rgba(233,69,96,0.5);
+    white-space: nowrap;
+    transition: background var(--transition), transform var(--transition), box-shadow var(--transition);
+    letter-spacing: 0.02em;
+  }
+
+  #drawer-toggle:active {
+    transform: translateX(-50%) scale(0.96);
+  }
+
+  /* Hide toggle when drawer is open */
+  #drawer-toggle.hidden {
+    opacity: 0;
+    pointer-events: none;
+  }
 }
