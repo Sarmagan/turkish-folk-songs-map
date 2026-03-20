@@ -123,6 +123,37 @@ const NAMED_REGIONS = {
   "KIRИМ"     : "Kırım",
 };
 
+/* ── PROVINCE LABEL COORDINATES (from SVG label_points, viewBox 0 0 1000 422) ── */
+const PROVINCE_COORDS = {
+  "Adana":[511.6,315.2],"Adiyaman":[654.1,282.2],"Afyonkarahisar":[277.4,233.6],
+  "Agri":[869.6,173.1],"Aksaray":[434.1,252.8],"Amasya":[520.5,110.0],
+  "Ankara":[374.2,163.1],"Antalya":[260.9,341.5],"Ardahan":[859.9,77.1],
+  "Artvin":[807.8,83.6],"Aydin":[157.0,289.6],"Balikesir":[151.2,166.5],
+  "Bartın":[369.3,53.1],"Batman":[794.5,257.1],"Bayburt":[736.9,133.7],
+  "Bilecik":[254.6,145.8],"Bingöl":[763.2,210.5],"Bitlis":[837.3,242.3],
+  "Bolu":[331.9,112.6],"Burdur":[247.3,305.0],"Bursa":[205.6,151.1],
+  "Denizli":[216.6,283.6],"Diyarbakir":[737.1,269.4],"Düzce":[311.3,95.8],
+  "Edirne":[87.9,81.4],"Elazig":[686.5,236.8],"Erzincan":[675.3,168.3],
+  "Erzurum":[799.5,154.0],"Eskisehir":[302.9,174.3],"Gaziantep":[604.7,330.0],
+  "Giresun":[656.3,115.1],"Gümüshane":[698.7,135.0],"Hakkari":[925.7,298.3],
+  "Hatay":[546.0,370.8],"Isparta":[299.1,277.4],"Istanbul":[176.3,73.8],
+  "Izmir":[127.6,259.0],"Iğdir":[915.7,161.9],"K. Maras":[580.1,277.2],
+  "Karabük":[378.4,77.9],"Karaman":[398.4,323.7],"Kars":[875.3,126.2],
+  "Kastamonu":[421.0,56.5],"Kayseri":[519.8,237.9],"Kilis":[586.2,344.3],
+  "Kinkkale":[424.4,166.1],"Kirklareli":[126.1,47.6],"Kirsehir":[448.9,192.6],
+  "Kocaeli":[254.3,93.2],"Konya":[368.1,267.4],"Kütahya":[231.8,194.5],
+  "Malatya":[630.1,234.9],"Manisa":[175.1,230.6],"Mardin":[770.8,307.9],
+  "Mersin":[432.7,353.6],"Mugla":[184.9,328.4],"Mus":[808.6,219.4],
+  "Nevsehir":[473.8,226.7],"Nigde":[472.6,272.5],"Ordu":[609.4,101.2],
+  "Osmaniye":[550.1,322.8],"Rize":[768.1,92.4],"Sakarya":[274.8,107.5],
+  "Samsun":[529.3,74.0],"Sanliurfa":[688.5,321.0],"Siirt":[822.5,277.5],
+  "Sinop":[483.6,48.4],"Sirnak":[843.9,306.9],"Sivas":[600.3,177.5],
+  "Tekirdag":[115.5,87.1],"Tokat":[568.3,122.1],"Trabzon":[716.4,101.0],
+  "Tunceli":[704.7,204.0],"Usak":[223.2,242.7],"Van":[900.1,246.9],
+  "Yalova":[215.4,114.7],"Yozgat":[504.6,176.7],"Zinguldak":[343.3,71.5],
+  "Çanakkale":[100.3,147.9],"Çankiri":[422.0,108.9],"Çorum":[471.6,120.2],
+};
+
 /* ── STATE ──────────────────────────────────────────────────────────────────── */
 let songsByProvince = {};
 let allSongs        = [];
@@ -395,6 +426,10 @@ function zoomAt(cx, cy, ns) {
 /* ── PAN STATE ──────────────────────────────────────────────────────────────── */
 let isDragging = false, dragStartX = 0, dragStartY = 0, dragOriginX = 0, dragOriginY = 0;
 
+/* ── KEYBOARD NAV STATE ─────────────────────────────────────────────────────── */
+let provincePaths = [];   // ordered list of all path elements
+let kbIndex       = -1;   // currently keyboard-focused province index
+
 window.addEventListener('mousemove', e => {
   if (!isDragging) return;
   translateX = dragOriginX + (e.clientX - dragStartX);
@@ -422,13 +457,85 @@ function closeDrawer() {
   drawerToggle.classList.remove('hidden');
 }
 
+/* ── KEYBOARD NEIGHBOR FINDING ──────────────────────────────────────────────── */
+function findNeighbor(fromIndex, arrowKey) {
+  // If no current province, start from westernmost
+  if (fromIndex < 0) {
+    let best = 0, bestX = Infinity;
+    provincePaths.forEach((p, i) => {
+      const c = PROVINCE_COORDS[p.getAttribute('name')];
+      if (c && c[0] < bestX) { bestX = c[0]; best = i; }
+    });
+    return best;
+  }
+
+  const fromName = provincePaths[fromIndex].getAttribute('name');
+  const from = PROVINCE_COORDS[fromName];
+  if (!from) return fromIndex;
+
+  const [fx, fy] = from;
+
+  const dirs = {
+    'ArrowRight': [ 1,  0],
+    'ArrowLeft':  [-1,  0],
+    'ArrowUp':    [ 0, -1],
+    'ArrowDown':  [ 0,  1],
+  };
+  const [dx, dy] = dirs[arrowKey];
+
+  // Collect all candidates that are in the right half-plane
+  const candidates = [];
+  provincePaths.forEach((p, i) => {
+    if (i === fromIndex) return;
+    const name = p.getAttribute('name');
+    const c = PROVINCE_COORDS[name];
+    if (!c) return;
+    const relX = c[0] - fx;
+    const relY = c[1] - fy;
+    const dot  = relX * dx + relY * dy;
+    if (dot <= 0) return;           // wrong direction
+    const dist     = Math.sqrt(relX * relX + relY * relY);
+    const cosAngle = dot / dist;    // 1 = perfectly aligned, 0 = perpendicular
+    candidates.push({ i, dist, cosAngle });
+  });
+
+  if (!candidates.length) return fromIndex;
+
+  // Sort by distance ascending, take only the closest ~8 to limit search space
+  candidates.sort((a, b) => a.dist - b.dist);
+  const pool = candidates.slice(0, 8);
+
+  // Among the pool, pick the one with the best alignment (highest cosAngle)
+  // but heavily penalise those with poor alignment (< 0.5 = >60° off-axis)
+  let bestIndex = -1;
+  let bestScore = Infinity;
+  pool.forEach(({ i, dist, cosAngle }) => {
+    // Reject candidates more than 70° off the target direction
+    if (cosAngle < 0.34) return;
+    // Score = dist * (2 - cosAngle)²  → nearby + aligned wins
+    const score = dist * Math.pow(2 - cosAngle, 2);
+    if (score < bestScore) { bestScore = score; bestIndex = i; }
+  });
+
+  // Fallback: if angle filter eliminated everyone, just take closest in pool
+  if (bestIndex === -1) bestIndex = pool[0].i;
+
+  return bestIndex;
+}
+
 /* ── PROVINCE WIRING ────────────────────────────────────────────────────────── */
 function wireProvinces() {
   const svg = mapContainer.querySelector('svg');
   if (!svg) return;
-  svg.querySelectorAll('path[name]').forEach(path => {
+  provincePaths = Array.from(svg.querySelectorAll('path[name]'));
+
+  provincePaths.forEach((path, idx) => {
     const svgName = path.getAttribute('name');
     if (getSongsFor(svgName)?.length) path.classList.add('has-data');
+
+    // Make focusable for keyboard nav
+    path.setAttribute('tabindex', '-1');
+
     path.addEventListener('mouseover', e => {
       if (window.innerWidth <= 700) return;
       e.stopPropagation();
@@ -438,19 +545,40 @@ function wireProvinces() {
       if (window.innerWidth <= 700) return;
       positionTooltip(e.clientX, e.clientY);
     });
-    path.addEventListener('mouseout', () => hideTooltip());
+    path.addEventListener('mouseout', () => {
+      hideTooltip();
+    });
     path.addEventListener('click', e => {
       e.stopPropagation();
-      if (activePanel) activePanel.classList.remove('active-province');
-      activePanel = path;
-      path.classList.add('active-province');
-      digerBtn.classList.remove('active');
-      if (searchInput) { searchInput.value = ''; searchClear.classList.remove('visible'); }
-      const songs = getSongsFor(svgName);
-      updateSidePanel(resolveName(svgName), songs);
-      if (window.innerWidth <= 700) openDrawer();
+      selectProvince(path, svgName);
+      kbIndex = idx;
+    });
+    path.addEventListener('focus', () => {
+      kbIndex = idx;
     });
   });
+}
+
+/* ── SELECT PROVINCE (shared by click + keyboard Enter) ─────────────────────── */
+function selectProvince(path, svgName) {
+  // Clear classes and blur all paths reliably
+  provincePaths.forEach(p => {
+    p.classList.remove('active-province', 'kb-focus');
+    p.blur(); 
+  });
+
+  activePanel = path;
+  path.classList.add('active-province');
+  
+  // Force the browser to shift focus to the new element
+  path.focus({ preventScroll: true });
+
+  digerBtn.classList.remove('active');
+  document.querySelectorAll('.btn-region').forEach(b => b.classList.remove('active'));
+  if (searchInput) { searchInput.value = ''; searchClear.classList.remove('visible'); }
+  const songs = getSongsFor(svgName);
+  updateSidePanel(resolveName(svgName), songs);
+  if (window.innerWidth <= 700) openDrawer();
 }
 
 /* ── INIT ───────────────────────────────────────────────────────────────────── */
@@ -577,4 +705,57 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   applyTransform();
   wireProvinces();
+
+  // Keyboard navigation — registered after wireProvinces so provincePaths is populated
+  window.addEventListener('keydown', e => {
+    if (document.activeElement === searchInput) return;
+    if (!provincePaths.length) return;
+    if (!['ArrowRight','ArrowLeft','ArrowUp','ArrowDown','Enter',' ','Escape'].includes(e.key)) return;
+    e.preventDefault();
+
+    if (e.key === 'Escape') {
+      hideTooltip();
+      provincePaths.forEach(p => p.classList.remove('kb-focus'));
+      kbIndex = -1;
+      return;
+    }
+
+    if (e.key === 'Enter' || e.key === ' ') {
+      console.log('Enter pressed, kbIndex:', kbIndex, provincePaths[kbIndex]?.getAttribute('name'));
+      if (kbIndex >= 0) {
+        const path = provincePaths[kbIndex];
+        hideTooltip();
+        selectProvince(path, path.getAttribute('name'));
+      }
+      return;
+    }
+
+    const next = findNeighbor(kbIndex, e.key);
+    if (next === -1) return;
+    kbIndex = next;
+
+    const path = provincePaths[kbIndex];
+    const svgName = path.getAttribute('name');
+
+    // Highlight without selecting — clear any previous mouse/click selection
+    if (activePanel) { activePanel.classList.remove('active-province'); activePanel = null; }
+    
+    // Blur all paths so CSS :focus pseudo-class doesn't keep the clicked city red
+    provincePaths.forEach(p => { p.classList.remove('kb-focus'); p.blur(); });
+    path.classList.add('kb-focus');
+
+    // Force focus to the new element while navigating with arrows
+    path.focus({ preventScroll: true });
+
+    if (window.innerWidth > 700) {
+      const coords = PROVINCE_COORDS[svgName];
+      if (coords) {
+        const svgEl = mapContainer.querySelector('svg');
+        const pt = svgEl.createSVGPoint();
+        pt.x = coords[0]; pt.y = coords[1];
+        const screen = pt.matrixTransform(svgEl.getScreenCTM());
+        showTooltip(svgName, screen.x, screen.y);
+      }
+    }
+  });
 });

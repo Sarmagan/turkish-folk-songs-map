@@ -163,10 +163,12 @@ header p {
     fill var(--transition),
     filter var(--transition);
   cursor: pointer;
+  outline: none;
 }
 
 #map-container svg path:hover,
-#map-container svg path.hovered {
+#map-container svg path.hovered,
+#map-container svg path:focus {
   fill: var(--highlight);
   filter: brightness(1.15) drop-shadow(0 0 6px rgba(245,166,35,0.55));
 }
@@ -176,7 +178,8 @@ header p {
 }
 
 #map-container svg path.has-data:hover,
-#map-container svg path.has-data.hovered {
+#map-container svg path.has-data.hovered,
+#map-container svg path.has-data:focus {
   fill: var(--accent);
   filter: brightness(1.2) drop-shadow(0 0 8px rgba(233,69,96,0.65));
 }
@@ -718,6 +721,17 @@ header p {
 .tt-more::before { content: '' !important; }
 
 #tooltip .no-data { font-size: 0.78rem; color: #888; font-style: italic; margin: 0; }
+
+/* ===== KEYBOARD FOCUSED PROVINCE (navigating but not yet selected) ===== */
+#map-container svg path.kb-focus {
+  fill: var(--highlight);
+  filter: brightness(1.15) drop-shadow(0 0 6px rgba(245,166,35,0.55));
+}
+
+#map-container svg path.has-data.kb-focus {
+  fill: var(--highlight);
+  filter: brightness(1.15) drop-shadow(0 0 6px rgba(245,166,35,0.55));
+}
 
 /* ===== ACTIVE PROVINCE ===== */
 #map-container svg path.active-province {
