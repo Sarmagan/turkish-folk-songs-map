@@ -147,6 +147,7 @@ function updateSidePanel(svgName, songs, displayName) {
     : `<p class="empty-msg">Bu ile ait türkü bulunamadı.</p>`;
 
   selectedInfo.innerHTML = html;
+  selectedInfo.scrollTop = 0;
 }
 
 function showDigerPanel() {
@@ -167,6 +168,7 @@ function showDigerPanel() {
     : `<p class="empty-msg">Henüz türkü eklenmedi.</p>`;
 
   selectedInfo.innerHTML = html;
+  selectedInfo.scrollTop = 0;
   digerBtn.classList.add('active');
 }
 
