@@ -4,6 +4,7 @@ An interactive map of Turkey's 81 provinces displaying regional folk songs (tür
 
 ![Website](website_screenshot.png)
 
+
 ## Features
 
 - **Hover tooltips** — hover over any province to see its folk songs in a floating tooltip
@@ -18,28 +19,22 @@ An interactive map of Turkey's 81 provinces displaying regional folk songs (tür
 index.html      # Main page — SVG map embedded inline
 styles.css      # All styling and theme variables
 app.js          # Interactivity: hover, tooltip, zoom, pan, data fetching
-songs.json      # Song data keyed by province name
-turkeymap.svg   # Source SVG (not needed at runtime — already embedded in index.html)
+songs.jsonl     # Song database — one JSON object per line (JSONL format)
 ```
 
 ## Adding Songs
 
-Open `songs.json` and add an entry using the Turkish province name as the key:
+Append new lines to `songs.jsonl`. Each line is a self-contained JSON object:
 
-```json
-{
-  "Konya": [
-    "Karamana Giderim",
-    "Konya Ovası"
-  ]
-}
+```jsonl
+{"song_title": "Karamana Giderim", "yoresi_ili": "KONYA", "repertuar_no": "1234", "ilcesi_koyu": "-", "kaynak_kisi": "...", "derleyen": "...", "notaya_alan": "...", "icra_eden": "-", "makamsal_dizi": "...", "konusu_turu": "Aşk Sevda", "karar_sesi": "Re", "bitis_sesi": "Re", "usul": "-", "en_pes_ses": "Re", "en_tiz_ses": "La", "ses_genisligi": "5 Ses", "lyrics": "Verse 1\nVerse 2", "source_url": "https://..."}
 ```
 
-The map will automatically highlight the province and display the songs on hover.
+Songs are grouped by `yoresi_ili`. Any entry whose `yoresi_ili` doesn't match one of Turkey's 81 provinces (e.g. `RUMELİ`, `KERKÜK`) is automatically placed in the **Diğer** category.
 
 ## Running Locally
 
-Open `index.html` via a local server to ensure `songs.json` loads correctly:
+Open `index.html` via a local server so `songs.jsonl` loads correctly:
 
 ```bash
 npx serve .
@@ -47,7 +42,7 @@ npx serve .
 python3 -m http.server
 ```
 
-Opening `index.html` directly as a `file://` URL also works — the app falls back to built-in mock data if the fetch fails.
+> **Note:** There is no mock/fallback data. The map requires `songs.jsonl` to be served alongside `index.html`. Opening via `file://` won't work — use a local server.
 
 ## Tech Stack
 

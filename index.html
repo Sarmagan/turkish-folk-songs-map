@@ -388,39 +388,42 @@
 
     <!-- ═══ SIDE PANEL ═══ -->
     <aside id="side-panel">
-      <h2>Harita Rehberi</h2>
 
-      <div class="legend-item">
-        <div class="legend-swatch" style="background:#2e6b96;"></div>
-        <span>Türkü verisi var</span>
-      </div>
-      <div class="legend-item">
-        <div class="legend-swatch" style="background:#4a7c9e;"></div>
-        <span>Henüz eklenmedi</span>
-      </div>
-      <div class="legend-item">
-        <div class="legend-swatch" style="background:#e94560;"></div>
-        <span>Üzerine gelinen il</span>
-      </div>
-      <div class="legend-item">
-        <div class="legend-swatch" style="background:#f5a623;"></div>
-        <span>Veri yok - üzerine gelinince</span>
+      <div class="panel-top">
+        <h2>Harita Rehberi</h2>
+
+        <p class="panel-stats">Toplam: <strong id="total-count">—</strong> türkü</p>
+
+        <div class="legend-item">
+          <div class="legend-swatch" style="background:#2e6b96;"></div>
+          <span>Türkü verisi var</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-swatch" style="background:#4a7c9e;"></div>
+          <span>Henüz eklenmedi</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-swatch" style="background:#e94560;"></div>
+          <span>Seçili il</span>
+        </div>
+
+        <button id="btn-diger" title="Haritada yer almayan yöreler">
+          🗺 Diğer Yöreler
+          <span class="diger-badge" id="diger-count">0</span>
+        </button>
       </div>
 
-      <!-- Populated on click -->
+      <!-- Song list for selected province -->
       <div id="selected-info">
         <p class="empty-msg">Bir ile tıklayın…</p>
       </div>
+
     </aside><!-- /side-panel -->
 
   </div><!-- /app-body -->
 
-  <!-- ═══ TOOLTIP ═══ -->
-  <div id="tooltip" role="tooltip" aria-live="polite">
-    <h2>İl adı</h2>
-    <ul></ul>
-    <p class="no-data">Henüz türkü eklenmedi.</p>
-  </div>
+  <!-- ═══ TOOLTIP (populated by JS) ═══ -->
+  <div id="tooltip" role="tooltip" aria-live="polite"></div>
 
   <script src="app.js"></script>
 </body>
