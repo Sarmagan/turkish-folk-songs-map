@@ -286,6 +286,7 @@ window.addEventListener('mouseup', () => {
 /* ── DRAWER ─────────────────────────────────────────────────────────────────── */
 function openDrawer() {
   drawerOpen = true;
+  hideTooltip();
   sidePanel.classList.add('drawer-open');
   drawerBackdrop.classList.add('visible');
   drawerToggle.classList.add('hidden');
@@ -305,9 +306,16 @@ function wireProvinces() {
   svg.querySelectorAll('path[name]').forEach(path => {
     const svgName = path.getAttribute('name');
     if (getSongsFor(svgName)?.length) path.classList.add('has-data');
-    path.addEventListener('mouseover', e => { e.stopPropagation(); showTooltip(svgName, e.clientX, e.clientY); });
-    path.addEventListener('mousemove', e => positionTooltip(e.clientX, e.clientY));
-    path.addEventListener('mouseout',  () => hideTooltip());
+    path.addEventListener('mouseover', e => {
+      if (window.innerWidth <= 700) return;
+      e.stopPropagation();
+      showTooltip(svgName, e.clientX, e.clientY);
+    });
+    path.addEventListener('mousemove', e => {
+      if (window.innerWidth <= 700) return;
+      positionTooltip(e.clientX, e.clientY);
+    });
+    path.addEventListener('mouseout', () => hideTooltip());
     path.addEventListener('click', e => {
       e.stopPropagation();
       if (activePanel) activePanel.classList.remove('active-province');
