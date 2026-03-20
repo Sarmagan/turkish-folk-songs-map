@@ -731,6 +731,10 @@ header p {
 /* ===== RESPONSIVE — MOBILE DRAWER ===== */
 @media (max-width: 700px) {
 
+  /* Never show tooltip on touch screens */
+  #tooltip { display: none !important; }
+
+
   /* Header: smaller */
   header { padding: 10px 14px; }
   header h1 { font-size: 1.1rem; }
