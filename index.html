@@ -407,13 +407,22 @@
           <span>Seçili il</span>
         </div>
 
-        <button id="btn-diger" title="Haritada yer almayan yöreler">
-          🗺 Diğer Yöreler
-          <span class="diger-badge" id="diger-count">0</span>
-        </button>
+        <div class="panel-action-btns">
+          <button id="btn-random" title="Rastgele türkü seç">🎲 Rastgele Türkü</button>
+          <button id="btn-diger" title="Haritada yer almayan yöreler">
+            🗺 Diğer
+            <span class="diger-badge" id="diger-count">0</span>
+          </button>
+        </div>
       </div>
 
-      <!-- Song list for selected province -->
+      <!-- Search box -->
+      <div id="search-bar">
+        <input id="search-input" type="text" placeholder="Türkü ara…" autocomplete="off" />
+        <button id="search-clear" title="Temizle" aria-label="Temizle">✕</button>
+      </div>
+
+      <!-- Song list for selected province or search results -->
       <div id="selected-info">
         <p class="empty-msg">Bir ile tıklayın…</p>
       </div>
