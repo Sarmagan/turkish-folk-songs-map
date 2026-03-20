@@ -16,6 +16,83 @@ const TURKISH_PROVINCES = new Set([
   "ŞIRNAK","TEKİRDAĞ","TOKAT","TRABZON","TUNCELİ","UŞAK","VAN","YALOVA","YOZGAT","ZONGULDAK"
 ]);
 
+/* ── DATA → CANONICAL PROVINCE NAME ────────────────────────────────────────────
+   Maps short/alternate yoresi_ili values in the JSONL data to the canonical
+   province name used as the key in songsByProvince (Title Case, matching SVG).
+   Add new entries here whenever the data uses a non-standard name.
+*/
+const DATA_TO_PROVINCE = {
+  // Afyon variants
+  "AFYON"              : "Afyonkarahisar",
+  "AFYONKARAHİSAR"     : "Afyonkarahisar",
+  "AFYONKARAHISAR"     : "Afyonkarahisar",
+  // Muş — data may use ASCII "MUS"
+  "MUS"                : "Muş",
+  "MUŞ"                : "Muş",
+  // Kahramanmaraş variants
+  "K. MARAŞ"           : "Kahramanmaraş",
+  "K.MARAŞ"            : "Kahramanmaraş",
+  "KAHRAMANMARAŞ"      : "Kahramanmaraş",
+  "KAHRAMAN MARAŞ"     : "Kahramanmaraş",
+  // Other common ASCII/short variants
+  "AGRI"               : "Ağrı",
+  "AĞRI"               : "Ağrı",
+  "IGDIR"              : "Iğdır",
+  "IĞDIR"              : "Iğdır",
+  "ELAZIG"             : "Elazığ",
+  "ELAZIĞ"             : "Elazığ",
+  "NEVSEHIR"           : "Nevşehir",
+  "NEVŞEHİR"           : "Nevşehir",
+  "SANLIURFA"          : "Şanlıurfa",
+  "ŞANLIURFA"          : "Şanlıurfa",
+  "DIYARBAKIR"         : "Diyarbakır",
+  "DİYARBAKIR"         : "Diyarbakır",
+  "SIRNAK"             : "Şırnak",
+  "ŞIRNAK"             : "Şırnak",
+  "USAK"               : "Uşak",
+  "UŞAK"               : "Uşak",
+  "MUGLA"              : "Muğla",
+  "MUĞLA"              : "Muğla",
+  "KUTAHYA"            : "Kütahya",
+  "KÜTAHYA"            : "Kütahya",
+  "ESKISEHIR"          : "Eskişehir",
+  "ESKİŞEHİR"          : "Eskişehir",
+  "TEKIRDAG"           : "Tekirdağ",
+  "TEKİRDAĞ"           : "Tekirdağ",
+  "KIRKLARELI"         : "Kırklareli",
+  "KIRKLARELİ"         : "Kırklareli",
+  "KIRSEHIR"           : "Kırşehir",
+  "KIRŞEHİR"           : "Kırşehir",
+  "KIRIKKALE"          : "Kırıkkale",
+  "KIRIKKALE"          : "Kırıkkale",
+  "BALIKESIR"          : "Balıkesir",
+  "BALIKESİR"          : "Balıkesir",
+  "CANAKKALE"          : "Çanakkale",
+  "ÇANAKKALE"          : "Çanakkale",
+  "CANKIRI"            : "Çankırı",
+  "ÇANKIRI"            : "Çankırı",
+  "CORUM"              : "Çorum",
+  "ÇORUM"              : "Çorum",
+  "AYDIN"              : "Aydın",
+  "AYDIN"              : "Aydın",
+  "ADIYAMAN"           : "Adıyaman",
+  "ADIYAMAN"           : "Adıyaman",
+  "GUMUSHANE"          : "Gümüşhane",
+  "GÜMÜŞHANE"          : "Gümüşhane",
+  "NIGDE"              : "Niğde",
+  "NİĞDE"              : "Niğde",
+  "BARTIN"             : "Bartın",
+  "BARTIN"             : "Bartın",
+  "DUZCE"              : "Düzce",
+  "DÜZCE"              : "Düzce",
+  "BINGOL"             : "Bingöl",
+  "BİNGÖL"             : "Bingöl",
+  "ISTANBUL"           : "İstanbul",
+  "İSTANBUL"           : "İstanbul",
+  "IZMIR"              : "İzmir",
+  "İZMİR"              : "İzmir",
+};
+
 /* ── SVG NAME → PROVINCE KEY ────────────────────────────────────────────────── */
 const SVG_TO_PROVINCE = {
   "Sanliurfa":"Şanlıurfa","Diyarbakir":"Diyarbakır","Izmir":"İzmir",
@@ -27,7 +104,7 @@ const SVG_TO_PROVINCE = {
   "Iğdir":"Iğdır","Istanbul":"İstanbul","Elazig":"Elazığ","Nevsehir":"Nevşehir",
   "Eskisehir":"Eskişehir","Usak":"Uşak","Balikesir":"Balıkesir",
   "Tekirdag":"Tekirdağ","Kirklareli":"Kırklareli","Nigde":"Niğde",
-  "Aydin":"Aydın","Siirt":"Siirt","Sirnak":"Şırnak",
+  "Aydin":"Aydın","Siirt":"Siirt","Sirnak":"Şırnak","Mus":"Muş",
 };
 
 /* ── STATE ──────────────────────────────────────────────────────────────────── */
@@ -71,7 +148,16 @@ function processData(rawArray) {
   rawArray.forEach(song => {
     const raw  = (song.yoresi_ili || '').trim();
     const norm = raw.toLocaleUpperCase('tr-TR');
-    const key  = TURKISH_PROVINCES.has(norm) ? toTitleCase(raw) : 'Diğer';
+    let key;
+    if (DATA_TO_PROVINCE[norm]) {
+      // Exact match in normalisation map → use canonical name
+      key = DATA_TO_PROVINCE[norm];
+    } else if (TURKISH_PROVINCES.has(norm)) {
+      // Recognised province, title-case it
+      key = toTitleCase(raw);
+    } else {
+      key = 'Diğer';
+    }
     if (!grouped[key]) grouped[key] = [];
     grouped[key].push(song);
   });
