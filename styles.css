@@ -342,34 +342,7 @@ header p {
   color: var(--text-primary);
 }
 
-#btn-diger {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 10px;
-  background: rgba(15,52,96,0.5);
-  border: 1px solid var(--surface);
-  border-radius: 8px;
-  color: var(--text-secondary);
-  font-family: 'Lato', sans-serif;
-  font-size: 0.75rem;
-  cursor: pointer;
-  transition: background var(--transition), border-color var(--transition), color var(--transition);
-  white-space: nowrap;
-}
-
-#btn-diger:hover {
-  background: var(--surface);
-  color: var(--text-primary);
-  border-color: var(--highlight);
-}
-
-#btn-diger.active {
-  background: var(--surface);
-  border-color: var(--highlight);
-  color: var(--highlight);
-}
+/* btn-diger styles merged into .btn-region,#btn-diger above */
 
 .diger-badge {
   margin-left: auto;
@@ -381,6 +354,45 @@ header p {
   border-radius: 10px;
   min-width: 20px;
   text-align: center;
+}
+
+/* ===== EXTRA REGION BUTTONS (Rumeli, Kerkük, Azerbaycan, Diğer) ===== */
+#extra-regions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.btn-region,
+#btn-diger {
+  display: none;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 10px;
+  background: rgba(15,52,96,0.5);
+  border: 1px solid var(--surface);
+  border-radius: 8px;
+  color: var(--text-secondary);
+  font-family: 'Lato', sans-serif;
+  font-size: 0.74rem;
+  cursor: pointer;
+  transition: background var(--transition), border-color var(--transition), color var(--transition);
+  white-space: nowrap;
+}
+
+.btn-region:hover,
+#btn-diger:hover {
+  background: var(--surface);
+  color: var(--text-primary);
+  border-color: var(--highlight);
+}
+
+.btn-region.active,
+#btn-diger.active {
+  background: var(--surface);
+  border-color: var(--highlight);
+  color: var(--highlight);
 }
 
 /* ===== SEARCH BAR ===== */

@@ -107,6 +107,22 @@ const SVG_TO_PROVINCE = {
   "Aydin":"Aydın","Siirt":"Siirt","Sirnak":"Şırnak","Mus":"Muş",
 };
 
+/* ── NAMED EXTRA REGIONS (get their own button, not lumped into Diğer) ────────── */
+const NAMED_REGIONS = {
+  "RUMELİ"    : "Rumeli",
+  "RUMELI"    : "Rumeli",
+  "KIRKÜK"    : "Kerkük",
+  "KERKÜK"    : "Kerkük",
+  "KERKUK"    : "Kerkük",
+  "AZERBAYCAN": "Azerbaycan",
+  "KIBRIS"    : "Kıbrıs",
+  "KIBRIŞ"    : "Kıbrıs",
+  "KIBRИС"    : "Kıbrıs",
+  "MUSUL"     : "Musul",
+  "KIRIM"     : "Kırım",
+  "KIRИМ"     : "Kırım",
+};
+
 /* ── STATE ──────────────────────────────────────────────────────────────────── */
 let songsByProvince = {};
 let allSongs        = [];
@@ -150,10 +166,10 @@ function processData(rawArray) {
     const norm = raw.toLocaleUpperCase('tr-TR');
     let key;
     if (DATA_TO_PROVINCE[norm]) {
-      // Exact match in normalisation map → use canonical name
       key = DATA_TO_PROVINCE[norm];
+    } else if (NAMED_REGIONS[norm]) {
+      key = NAMED_REGIONS[norm];
     } else if (TURKISH_PROVINCES.has(norm)) {
-      // Recognised province, title-case it
       key = toTitleCase(raw);
     } else {
       key = 'Diğer';
@@ -246,7 +262,28 @@ function showDigerPanel() {
     <h3>Diğer Yöreler</h3>
     <span class="panel-count">${songs.length} türkü</span>
   </div>
-  <p class="diger-note">Haritada yer almayan yöreler (Rumeli, Kerkük vb.)</p>`;
+  <p class="diger-note">Diğer yöreler veya yöresi net bilinmeyen türküler</p>`;
+  html += songs.length > 0
+    ? songs.map(s => buildSongCard(s)).join('')
+    : '<p class="empty-msg">Henüz türkü eklenmedi.</p>';
+  selectedInfo.innerHTML = html;
+  selectedInfo.scrollTop = 0;
+  if (window.innerWidth <= 700) openDrawer();
+}
+
+function showRegionPanel(regionName) {
+  const songs = songsByProvince[regionName] || [];
+  if (activePanel) { activePanel.classList.remove('active-province'); activePanel = null; }
+  digerBtn.classList.remove('active');
+  // Deactivate other region buttons, activate this one
+  document.querySelectorAll('.btn-region').forEach(b => b.classList.remove('active'));
+  const thisBtn = document.querySelector(`[data-region="${regionName}"]`);
+  if (thisBtn) thisBtn.classList.add('active');
+
+  let html = `<div class="panel-province-header">
+    <h3>${regionName}</h3>
+    <span class="panel-count">${songs.length} türkü</span>
+  </div>`;
   html += songs.length > 0
     ? songs.map(s => buildSongCard(s)).join('')
     : '<p class="empty-msg">Henüz türkü eklenmedi.</p>';
@@ -274,7 +311,7 @@ function runSearch(query) {
 }
 
 function clearSearch() {
-  selectedInfo.innerHTML = '<p class="empty-msg">Bir ile tıklayın…</p>';
+  selectedInfo.innerHTML = '<p class="empty-msg">Bir ilin üzerine gelin ve tıklayın…</p>';
 }
 
 /* ── RANDOM TÜRKÜ ────────────────────────────────────────────────────────────── */
@@ -445,6 +482,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Panel buttons
   digerBtn.addEventListener('click', showDigerPanel);
+
+  // Named region buttons (Rumeli, Kerkük, Azerbaycan…)
+  document.getElementById('extra-regions').addEventListener('click', e => {
+    const btn = e.target.closest('[data-region]');
+    if (btn) showRegionPanel(btn.dataset.region);
+  });
   document.getElementById('btn-random').addEventListener('click', showRandomSong);
 
   // Search
@@ -520,7 +563,17 @@ document.addEventListener('DOMContentLoaded', async () => {
   const digerCount = (songsByProvince['Diğer'] || []).length;
   const badge = document.getElementById('diger-count');
   if (badge) badge.textContent = digerCount;
-  digerBtn.style.display = digerCount > 0 ? 'flex' : 'none';
+  digerBtn.style.display = digerCount > 0 ? 'inline-flex' : 'none';
+
+  // Populate named region buttons
+  const regionContainer = document.getElementById('extra-regions');
+  Object.values(NAMED_REGIONS).forEach(regionName => {
+    const count = (songsByProvince[regionName] || []).length;
+    const countEl = document.getElementById('count-' + regionName);
+    if (countEl) countEl.textContent = count;
+    const btn = regionContainer?.querySelector(`[data-region="${regionName}"]`);
+    if (btn) btn.style.display = count > 0 ? 'inline-flex' : 'none';
+  });
 
   applyTransform();
   wireProvinces();
