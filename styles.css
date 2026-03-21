@@ -2244,6 +2244,32 @@ body:not(.choropleth-on) #legend-choropleth-wrap {
 }
 
 /* ═══════════════════════════════════════════════════════════════
+   DATA SOURCE CREDIT
+   ═══════════════════════════════════════════════════════════════ */
+
+#data-credit {
+  padding: 8px 16px 12px;
+  border-top: 1px solid var(--surface);
+  font-size: 0.65rem;
+  color: var(--text-secondary);
+  opacity: 0.6;
+  flex-shrink: 0;
+  text-align: center;
+  letter-spacing: 0.02em;
+}
+
+#data-credit a {
+  color: var(--highlight);
+  text-decoration: none;
+  font-weight: 700;
+}
+
+#data-credit a:hover {
+  text-decoration: underline;
+  opacity: 1;
+}
+
+/* ═══════════════════════════════════════════════════════════════
    GÜNÜN TÜRKÜSÜ CARD — floating overlay bottom-left of map
    ═══════════════════════════════════════════════════════════════ */
 
