@@ -709,17 +709,9 @@ function positionTooltip(cx, cy) {
 function hideTooltip() { tooltip.className = ''; }
 
 /* ── TRANSFORM ──────────────────────────────────────────────────────────────── */
-function applyTransform(animated) {
-  if (animated) {
-    mapContainer.style.transition = 'transform 0.3s cubic-bezier(.4,0,.2,1)';
-    requestAnimationFrame(() => {
-      mapContainer.style.transform = `translate(${translateX}px,${translateY}px) scale(${scale})`;
-      setTimeout(() => { mapContainer.style.transition = 'none'; }, 320);
-    });
-  } else {
-    mapContainer.style.transition = 'none';
-    mapContainer.style.transform  = `translate(${translateX}px,${translateY}px) scale(${scale})`;
-  }
+function applyTransform() {
+  mapContainer.style.transition = 'none';
+  mapContainer.style.transform  = `translate(${translateX}px,${translateY}px) scale(${scale})`;
   scaleBadge.textContent = `${Math.round(scale * 100)}%`;
   updateLabelScale();
 }
@@ -1305,14 +1297,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Zoom buttons
   document.getElementById('btn-zoom-in').addEventListener('click', () => {
     const r = mapWrapper.getBoundingClientRect();
-    zoomAt(r.width/2, r.height/2, scale + ZOOM_STEP); applyTransform(true);
+    zoomAt(r.width/2, r.height/2, scale + ZOOM_STEP); applyTransform();
   });
   document.getElementById('btn-zoom-out').addEventListener('click', () => {
     const r = mapWrapper.getBoundingClientRect();
-    zoomAt(r.width/2, r.height/2, scale - ZOOM_STEP); applyTransform(true);
+    zoomAt(r.width/2, r.height/2, scale - ZOOM_STEP); applyTransform();
   });
   document.getElementById('btn-reset').addEventListener('click', () => {
-    scale = 1; translateX = 0; translateY = 0; applyTransform(true);
+    scale = 1; translateX = 0; translateY = 0; applyTransform();
   });
 
   // Panel buttons
