@@ -533,6 +533,11 @@
   <!-- ═══ SONG DETAIL MODAL ═══ -->
   <div id="song-modal" class="song-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title" hidden>
     <div class="song-modal-backdrop"></div>
+
+    <!-- Prev / Next navigation arrows — live on the overlay, not inside the clipped sheet -->
+    <button class="modal-nav-btn modal-nav-prev" id="modal-prev" aria-label="Önceki türkü" title="Önceki">&#8592;</button>
+    <button class="modal-nav-btn modal-nav-next" id="modal-next" aria-label="Sonraki türkü" title="Sonraki">&#8594;</button>
+
     <div class="song-modal-sheet">
       <button class="song-modal-close" id="modal-close" aria-label="Kapat">✕</button>
 
@@ -540,6 +545,8 @@
         <div class="song-modal-note">♩</div>
         <h2 class="song-modal-title" id="modal-title"></h2>
         <div class="song-modal-region" id="modal-region"></div>
+        <!-- Navigation counter -->
+        <div class="modal-nav-counter" id="modal-nav-counter"></div>
       </div>
 
       <div class="song-modal-body">
@@ -573,6 +580,9 @@
       <div class="song-modal-footer">
         <span class="modal-rep-no" id="modal-rep-no"></span>
         <div class="modal-footer-actions">
+          <button class="modal-copy-link-btn" id="modal-copy-link-btn" title="Bağlantıyı kopyala">
+            <span class="copy-link-icon">🔗</span> <span id="copy-link-label">Bağlantı</span>
+          </button>
           <button class="modal-share-btn" id="modal-share-btn" title="Paylaşım kartı oluştur">
             <span class="share-btn-icon">↑</span> Paylaş
           </button>

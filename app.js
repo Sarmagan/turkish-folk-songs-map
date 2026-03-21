@@ -211,6 +211,9 @@ let allSongs        = [];
 let scale = 1, translateX = 0, translateY = 0;
 let activePanel  = null;
 let drawerOpen   = false;
+/* ── Modal navigation context ───────────────────────────────────────────────── */
+// Stores the ordered list of song indices shown when a modal is opened from a province/region
+let modalSongList = [];   // array of allSongs indices available for prev/next navigation
 let labelsVisible     = true;
 let choroplethVisible = false;
 let currentModalSongIdx = -1;
@@ -282,7 +285,7 @@ function getSongsFor(svgName) {
 }
 
 /* ── SONG CARD ──────────────────────────────────────────────────────────────── */
-function buildSongCard(song, highlightQuery, highlightScopes) {
+function buildSongCard(song, highlightQuery, highlightScopes, navList = null) {
   const hl = (text, field) => {
     if (!highlightQuery || !text) return escapeHtml(text || '');
     if (highlightScopes && !highlightScopes.includes(field)) return escapeHtml(text);
@@ -319,7 +322,10 @@ function buildSongCard(song, highlightQuery, highlightScopes) {
   // Store song index so the modal can look it up
   const idx = allSongs.indexOf(song);
 
-  return `<div class="song-card" onclick="openSongModal(${idx})" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' ')openSongModal(${idx})">
+  // Encode the navList as a JSON attribute so the modal can navigate within the context
+  const navAttr = navList ? ` data-nav-list='${JSON.stringify(navList)}'` : '';
+
+  return `<div class="song-card" onclick="openSongModal(${idx}, true, ${navList ? `JSON.parse(this.dataset.navList)` : 'null'})"${navAttr} role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' ')openSongModal(${idx}, true, ${navList ? `JSON.parse(this.dataset.navList)` : 'null'})">
     <div class="song-card-title">♩ ${title}</div>
     <div class="song-meta">${metaHTML}</div>
     <div class="song-card-cta">Detayları gör ↗</div>
@@ -330,10 +336,13 @@ function buildSongCard(song, highlightQuery, highlightScopes) {
 
 let modalCloseTimer = null;
 
-function openSongModal(idx, updateUrl = true) {
+function openSongModal(idx, updateUrl = true, navList = null) {
   const song = allSongs[idx];
   if (!song) return;
   currentModalSongIdx = idx;
+
+  // Update navigation list if provided; otherwise keep existing list
+  if (navList !== null) modalSongList = navList;
 
   // Hide share overlay if previously open
   document.getElementById('share-preview-overlay')?.setAttribute('hidden', '');
@@ -453,6 +462,26 @@ function openSongModal(idx, updateUrl = true) {
   const body = modal.querySelector('.song-modal-body');
   if (body) body.scrollTop = 0;
 
+  // ── Prev / Next navigation ──
+  const navPos = modalSongList.indexOf(idx);
+  const hasPrev = navPos > 0;
+  const hasNext = navPos >= 0 && navPos < modalSongList.length - 1;
+
+  const prevBtn = document.getElementById('modal-prev');
+  const nextBtn = document.getElementById('modal-next');
+  const counterEl = document.getElementById('modal-nav-counter');
+
+  if (prevBtn) prevBtn.classList.toggle('hidden', !hasPrev);
+  if (nextBtn) nextBtn.classList.toggle('hidden', !hasNext);
+  if (counterEl) {
+    if (modalSongList.length > 1 && navPos >= 0) {
+      counterEl.textContent = `${navPos + 1} / ${modalSongList.length}`;
+      counterEl.style.display = '';
+    } else {
+      counterEl.style.display = 'none';
+    }
+  }
+
   // Update URL hash
   if (updateUrl) {
     const rep = fmt(song.repertuar_no);
@@ -483,12 +512,18 @@ function closeSongModal(updateUrl = true) {
 /* ── SIDE PANEL ─────────────────────────────────────────────────────────────── */
 function updateSidePanel(displayName, songs) {
   const count = songs ? songs.length : 0;
+  // Build ordered list of allSongs indices for this panel's songs
+  const navList = songs ? songs.map(s => allSongs.indexOf(s)).filter(i => i >= 0) : [];
+
   let html = `<div class="panel-province-header">
     <h3>${displayName}</h3>
-    <span class="panel-count">${count} türkü</span>
+    <div class="panel-header-row">
+      <span class="panel-count">${count} türkü</span>
+      ${count > 1 ? `<button class="btn-random-province" onclick="showRandomSongFromList(${JSON.stringify(navList).replace(/"/g, '&quot;')})" title="${displayName} içinden rastgele türkü">🎲 Rastgele</button>` : ''}
+    </div>
   </div>`;
   html += count > 0
-    ? songs.map(s => buildSongCard(s)).join('')
+    ? songs.map(s => buildSongCard(s, null, null, navList)).join('')
     : '<p class="empty-msg">Bu ile ait türkü bulunamadı.</p>';
   selectedInfo.innerHTML = html;
   selectedInfo.scrollTop = 0;
@@ -505,16 +540,20 @@ function resetSearchAndFilters() {
 
 function showDigerPanel() {
   const songs = songsByProvince['Diğer'] || [];
+  const navList = songs.map(s => allSongs.indexOf(s)).filter(i => i >= 0);
   if (activePanel) { activePanel.classList.remove('active-province'); activePanel = null; }
   resetSearchAndFilters();
   digerBtn.classList.add('active');
   let html = `<div class="panel-province-header">
     <h3>Diğer Yöreler</h3>
-    <span class="panel-count">${songs.length} türkü</span>
+    <div class="panel-header-row">
+      <span class="panel-count">${songs.length} türkü</span>
+      ${songs.length > 1 ? `<button class="btn-random-province" onclick="showRandomSongFromList(${JSON.stringify(navList).replace(/"/g, '&quot;')})" title="Diğer yörelerden rastgele türkü">🎲 Rastgele</button>` : ''}
+    </div>
   </div>
   <p class="diger-note">Diğer yöreler veya yöresi net bilinmeyen türküler</p>`;
   html += songs.length > 0
-    ? songs.map(s => buildSongCard(s)).join('')
+    ? songs.map(s => buildSongCard(s, null, null, navList)).join('')
     : '<p class="empty-msg">Henüz türkü eklenmedi.</p>';
   selectedInfo.innerHTML = html;
   selectedInfo.scrollTop = 0;
@@ -523,6 +562,7 @@ function showDigerPanel() {
 
 function showRegionPanel(regionName) {
   const songs = songsByProvince[regionName] || [];
+  const navList = songs.map(s => allSongs.indexOf(s)).filter(i => i >= 0);
   if (activePanel) { activePanel.classList.remove('active-province'); activePanel = null; }
   resetSearchAndFilters();
   digerBtn.classList.remove('active');
@@ -533,10 +573,13 @@ function showRegionPanel(regionName) {
 
   let html = `<div class="panel-province-header">
     <h3>${regionName}</h3>
-    <span class="panel-count">${songs.length} türkü</span>
+    <div class="panel-header-row">
+      <span class="panel-count">${songs.length} türkü</span>
+      ${songs.length > 1 ? `<button class="btn-random-province" onclick="showRandomSongFromList(${JSON.stringify(navList).replace(/"/g, '&quot;')})" title="${regionName} içinden rastgele türkü">🎲 Rastgele</button>` : ''}
+    </div>
   </div>`;
   html += songs.length > 0
-    ? songs.map(s => buildSongCard(s)).join('')
+    ? songs.map(s => buildSongCard(s, null, null, navList)).join('')
     : '<p class="empty-msg">Henüz türkü eklenmedi.</p>';
   selectedInfo.innerHTML = html;
   selectedInfo.scrollTop = 0;
@@ -588,7 +631,10 @@ function runSearch(query) {
 
   // Highlight only when the field being highlighted is in scopes
   html += results.length > 0
-    ? results.map(s => buildSongCard(s, query, scopes)).join('')
+    ? results.map(s => {
+        const navList = results.map(r => allSongs.indexOf(r)).filter(i => i >= 0);
+        return buildSongCard(s, query, scopes, navList);
+      }).join('')
     : '<p class="empty-msg">Sonuç bulunamadı.</p>';
   selectedInfo.innerHTML = html;
   selectedInfo.scrollTop = 0;
@@ -603,7 +649,10 @@ function runFilterOnly() {
   if (filterTags) html += `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;">${filterTags}</div>`;
   html += `</div>`;
   html += results.length > 0
-    ? results.map(s => buildSongCard(s)).join('')
+    ? results.map(s => {
+        const navList = results.map(r => allSongs.indexOf(r)).filter(i => i >= 0);
+        return buildSongCard(s, null, null, navList);
+      }).join('')
     : '<p class="empty-msg">Sonuç bulunamadı.</p>';
   selectedInfo.innerHTML = html;
   selectedInfo.scrollTop = 0;
@@ -676,6 +725,14 @@ function showRandomSong() {
     ${buildSongCard(song)}`;
   selectedInfo.scrollTop = 0;
   if (window.innerWidth <= 700) openDrawer();
+}
+
+/* Picks a random song from a specific navList (array of allSongs indices) and
+   opens it in the modal with full prev/next context for that list. */
+function showRandomSongFromList(navList) {
+  if (!navList || navList.length === 0) return;
+  const randomIdx = navList[Math.floor(Math.random() * navList.length)];
+  openSongModal(randomIdx, true, navList);
 }
 
 /* ── TOOLTIP ────────────────────────────────────────────────────────────────── */
@@ -1274,6 +1331,60 @@ document.addEventListener('DOMContentLoaded', async () => {
     .querySelector('.song-modal-backdrop')
     .addEventListener('click', closeSongModal);
 
+  // ── MODAL PREV / NEXT WIRING ────────────────────────────────────────────────
+  document.getElementById('modal-prev')?.addEventListener('click', () => {
+    const pos = modalSongList.indexOf(currentModalSongIdx);
+    if (pos > 0) openSongModal(modalSongList[pos - 1], true, modalSongList);
+  });
+  document.getElementById('modal-next')?.addEventListener('click', () => {
+    const pos = modalSongList.indexOf(currentModalSongIdx);
+    if (pos >= 0 && pos < modalSongList.length - 1) openSongModal(modalSongList[pos + 1], true, modalSongList);
+  });
+
+  // ── MODAL SWIPE NAVIGATION ──────────────────────────────────────────────────
+  (() => {
+    const sheet = document.querySelector('.song-modal-sheet');
+    if (!sheet) return;
+    let swipeStartX = 0, swipeStartY = 0;
+    sheet.addEventListener('touchstart', e => {
+      swipeStartX = e.touches[0].clientX;
+      swipeStartY = e.touches[0].clientY;
+    }, { passive: true });
+    sheet.addEventListener('touchend', e => {
+      const dx = e.changedTouches[0].clientX - swipeStartX;
+      const dy = Math.abs(e.changedTouches[0].clientY - swipeStartY);
+      if (Math.abs(dx) < 60 || dy > 80) return; // not a horizontal swipe
+      const pos = modalSongList.indexOf(currentModalSongIdx);
+      if (dx < 0 && pos >= 0 && pos < modalSongList.length - 1) {
+        // Swipe left → next
+        openSongModal(modalSongList[pos + 1], true, modalSongList);
+      } else if (dx > 0 && pos > 0) {
+        // Swipe right → previous
+        openSongModal(modalSongList[pos - 1], true, modalSongList);
+      }
+    }, { passive: true });
+  })();
+
+  // ── COPY LINK WIRING ────────────────────────────────────────────────────────
+  document.getElementById('modal-copy-link-btn')?.addEventListener('click', () => {
+    const url = location.href;
+    const labelEl = document.getElementById('copy-link-label');
+    navigator.clipboard.writeText(url).then(() => {
+      if (labelEl) { labelEl.textContent = 'Kopyalandı ✓'; }
+      setTimeout(() => { if (labelEl) labelEl.textContent = 'Bağlantı'; }, 2000);
+    }).catch(() => {
+      // Fallback: select a temporary input
+      const inp = document.createElement('input');
+      inp.value = url;
+      document.body.appendChild(inp);
+      inp.select();
+      document.execCommand('copy');
+      document.body.removeChild(inp);
+      if (labelEl) { labelEl.textContent = 'Kopyalandı ✓'; }
+      setTimeout(() => { if (labelEl) labelEl.textContent = 'Bağlantı'; }, 2000);
+    });
+  });
+
   // ── SHARE BUTTON WIRING ──────────────────────────────────────────────────────
   document.getElementById('modal-share-btn')?.addEventListener('click', () => {
     const idx = currentModalSongIdx;
@@ -1576,6 +1687,21 @@ document.addEventListener('DOMContentLoaded', async () => {
       provincePaths.forEach(p => p.classList.remove('kb-focus'));
       kbIndex = -1;
       return;
+    }
+
+    // Arrow Left/Right navigate within an open modal
+    const modal = document.getElementById('song-modal');
+    if (modal && !modal.hidden) {
+      if (e.key === 'ArrowLeft') {
+        const pos = modalSongList.indexOf(currentModalSongIdx);
+        if (pos > 0) openSongModal(modalSongList[pos - 1], true, modalSongList);
+        return;
+      }
+      if (e.key === 'ArrowRight') {
+        const pos = modalSongList.indexOf(currentModalSongIdx);
+        if (pos >= 0 && pos < modalSongList.length - 1) openSongModal(modalSongList[pos + 1], true, modalSongList);
+        return;
+      }
     }
 
     if (e.key === 'Enter' || e.key === ' ') {
