@@ -191,13 +191,10 @@ function buildProvinceLabels() {
 
 function updateLabelScale() {
   if (!labelGroup) return;
-  // Dampen the counter-scale so labels grow with zoom rather than staying
-  // pinned to a fixed screen size. At scale=1 they render at LABEL_BASE_PX;
-  // at higher zoom they grow proportionally to sqrt(scale), so they're always
-  // readable but also visibly larger when the map is zoomed in.
-  const dampened    = Math.sqrt(scale);
-  const svgFontSize = (LABEL_BASE_PX / SVG_UNIT_PX) / dampened;
-  const svgStrokeW  = (2.5 / SVG_UNIT_PX) / dampened;
+  // fontSize in SVG units so that rendered size ≈ LABEL_BASE_PX at any zoom
+  const svgFontSize = (LABEL_BASE_PX / SVG_UNIT_PX) / scale;
+  // stroke-width also counter-scales for the outline effect
+  const svgStrokeW  = (2.5 / SVG_UNIT_PX) / scale;
 
   labelGroup.querySelectorAll('text').forEach(t => {
     t.setAttribute('font-size', svgFontSize);
@@ -1625,3 +1622,265 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 });
+/* ═══════════════════════════════════════════════════════════════
+   ONBOARDING TOUR
+   ═══════════════════════════════════════════════════════════════ */
+
+(function initOnboarding() {
+  const STORAGE_KEY = 'turkuharitasi_toured_v1';
+  if (localStorage.getItem(STORAGE_KEY)) return;
+
+  const isMobile = () => window.innerWidth <= 700;
+
+  // Steps: desktop and mobile variants where behaviour differs
+  const STEPS_DESKTOP = [
+    {
+      icon: '🗺️',
+      title: 'Türkiye Türkü Haritası\'na Hoş Geldiniz',
+      body: 'Her ilin üzerine gelerek ya da tıklayarak o ile ait türküleri keşfedebilirsiniz.',
+      targetId: 'map-wrapper',
+      arrow: 'none',
+    },
+    {
+      icon: '🖱️',
+      title: 'Üzerine Gelin',
+      body: 'Fare ile bir ilin üzerine gelince, o ile ait türküler küçük bir baloncukta belirir.',
+      targetId: 'map-wrapper',
+      arrow: 'none',
+    },
+    {
+      icon: '📌',
+      title: 'Tıklayın',
+      body: 'Bir ile tıklarsanız türküleri yan panelde sabitlenmiş olarak görürsünüz. Kartlara tıklayarak detayları açabilirsiniz.',
+      targetId: 'side-panel',
+      arrow: 'left',
+    },
+    {
+      icon: '🎲',
+      title: 'Rastgele Türkü',
+      body: '\"Rastgele\" düğmesiyle veri tabanından rastgele bir türkü seçilir ve ilgili il vurgulanır.',
+      targetId: 'btn-random',
+      arrow: 'top',
+    },
+    {
+      icon: '🔍',
+      title: 'Arama',
+      body: 'Türkü adına, kaynak kişiye veya makami\'e göre filtreleyerek arama yapabilirsiniz.',
+      targetId: 'search-input',
+      arrow: 'top',
+    },
+    {
+      icon: '🔎',
+      title: 'Yakınlaştır & Kaydır',
+      body: 'Fare tekerleğiyle yakınlaştırın, sürükleyerek haritada gezinin. Sağ alttaki düğmelerle de zoom yapabilirsiniz.',
+      targetId: 'zoom-controls',
+      arrow: 'right',
+    },
+  ];
+
+  const STEPS_MOBILE = [
+    {
+      icon: '🗺️',
+      title: 'Türkiye Türkü Haritası\'na Hoş Geldiniz',
+      body: 'Haritada bir ile dokunarak o ile ait türküleri keşfedebilirsiniz.',
+      targetId: 'map-wrapper',
+      arrow: 'none',
+    },
+    {
+      icon: '👆',
+      title: 'Bir İle Dokunun',
+      body: 'Herhangi bir ile dokunduğunuzda türküleri alt panelde görürsünüz. Kartlara tıklayarak detayları açabilirsiniz.',
+      targetId: 'map-wrapper',
+      arrow: 'none',
+    },
+    {
+      icon: '📋',
+      title: 'Alt Panel',
+      body: 'Alttaki "Türküler" düğmesiyle paneli açıp kapayabilir, arama yapabilir ve türkülere göz atabilirsiniz.',
+      targetId: 'drawer-toggle',
+      arrow: 'bottom',
+    },
+    {
+      icon: '🎲',
+      title: 'Rastgele Türkü',
+      body: 'Panel içindeki \"Rastgele\" düğmesiyle veri tabanından rastgele bir türkü seçilir.',
+      targetId: 'btn-random',
+      arrow: 'top',
+    },
+    {
+      icon: '🤏',
+      title: 'Yakınlaştır & Kaydır',
+      body: 'İki parmakla sıkıştırma hareketi ile yakınlaştırın, tek parmakla sürükleyerek haritada gezinin.',
+      targetId: 'zoom-controls',
+      arrow: 'right',
+    },
+  ];
+
+  let currentStep = 0;
+  let steps;
+
+  const overlay   = document.getElementById('onboarding-overlay');
+  const spotlight = document.getElementById('onboarding-spotlight');
+  const card      = document.getElementById('onboarding-card');
+  const stepDots  = document.getElementById('onboarding-step-indicator');
+  const iconEl    = document.getElementById('onboarding-icon');
+  const titleEl   = document.getElementById('onboarding-title');
+  const bodyEl    = document.getElementById('onboarding-body');
+  const nextBtn   = document.getElementById('onboarding-next');
+  const skipBtn   = document.getElementById('onboarding-skip');
+
+  function getTargetRect(id) {
+    const el = document.getElementById(id);
+    if (!el) return null;
+    return el.getBoundingClientRect();
+  }
+
+  const PAD = 10; // spotlight padding around target
+
+  function buildSpotlightPath(rect) {
+    if (!rect) {
+      // No spotlight — just a full dark scrim
+      return 'rgba(0,0,0,0.6)';
+    }
+    const x = Math.max(0, rect.left - PAD);
+    const y = Math.max(0, rect.top  - PAD);
+    const w = rect.width  + PAD * 2;
+    const h = rect.height + PAD * 2;
+    const r = 10; // border-radius of hole
+    const W = window.innerWidth;
+    const H = window.innerHeight;
+
+    // SVG path: outer rect (whole screen) then inner rounded-rect cutout (hole)
+    // Uses even-odd fill rule so the hole is transparent
+    const path = `M 0 0 L ${W} 0 L ${W} ${H} L 0 ${H} Z ` +
+      `M ${x+r} ${y} ` +
+      `L ${x+w-r} ${y} Q ${x+w} ${y} ${x+w} ${y+r} ` +
+      `L ${x+w} ${y+h-r} Q ${x+w} ${y+h} ${x+w-r} ${y+h} ` +
+      `L ${x+r} ${y+h} Q ${x} ${y+h} ${x} ${y+h-r} ` +
+      `L ${x} ${y+r} Q ${x} ${y} ${x+r} ${y} Z`;
+
+    return path;
+  }
+
+  function positionCard(rect, arrow) {
+    const CARD_W = isMobile() ? window.innerWidth - 32 : 260;
+    const CARD_ESTIMATE_H = 200;
+    const MARGIN = 16;
+    const W = window.innerWidth;
+    const H = window.innerHeight;
+
+    card.className = `arrow-${arrow}`;
+
+    if (isMobile() || !rect || arrow === 'none') {
+      // Centre-bottom on mobile, or no target
+      card.style.top  = `${H / 2 - CARD_ESTIMATE_H / 2}px`;
+      card.style.left = `${MARGIN}px`;
+      return;
+    }
+
+    let top, left;
+
+    if (arrow === 'top') {
+      // Card below the target
+      top  = rect.bottom + PAD + 10;
+      left = rect.left;
+    } else if (arrow === 'bottom') {
+      // Card above the target
+      top  = rect.top - PAD - CARD_ESTIMATE_H - 10;
+      left = rect.left;
+    } else if (arrow === 'left') {
+      // Card to the right of the target
+      top  = rect.top;
+      left = rect.right + PAD + 14;
+    } else if (arrow === 'right') {
+      // Card to the left of the target
+      top  = rect.top;
+      left = rect.left - CARD_W - PAD - 14;
+    } else {
+      // Centre of screen
+      top  = H / 2 - CARD_ESTIMATE_H / 2;
+      left = W / 2 - CARD_W / 2;
+    }
+
+    // Clamp to viewport
+    left = Math.max(MARGIN, Math.min(left, W - CARD_W - MARGIN));
+    top  = Math.max(MARGIN, Math.min(top, H - CARD_ESTIMATE_H - MARGIN));
+
+    card.style.top  = `${top}px`;
+    card.style.left = `${left}px`;
+  }
+
+  function renderStep(idx) {
+    const step = steps[idx];
+    const isLast = idx === steps.length - 1;
+    const rect = getTargetRect(step.targetId);
+
+    // Spotlight
+    if (step.arrow === 'none' || !rect) {
+      spotlight.style.background = 'rgba(0,0,0,0.55)';
+      spotlight.style.clipPath   = 'none';
+    } else {
+      const svgPath = buildSpotlightPath(rect);
+      spotlight.style.background = 'rgba(0,0,0,0)';
+      spotlight.style.clipPath   = 'none';
+      // Use inline SVG mask approach via a painted canvas-style overlay
+      spotlight.style.background = 'none';
+      // Draw via a pseudo-SVG overlay on the spotlight div
+      spotlight.innerHTML = `<svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" style="position:absolute;inset:0">
+        <path fill-rule="evenodd" fill="rgba(0,0,0,0.58)" d="${svgPath}"/>
+      </svg>`;
+    }
+
+    // Step dots
+    stepDots.innerHTML = steps.map((_, i) =>
+      `<div class="ob-dot ${i === idx ? 'active' : ''}"></div>`
+    ).join('');
+
+    // Content
+    iconEl.textContent  = step.icon;
+    titleEl.textContent = step.title;
+    bodyEl.textContent  = step.body;
+    nextBtn.textContent = isLast ? 'Başla ✓' : 'İleri →';
+
+    // Position card
+    positionCard(rect, step.arrow);
+
+    // Animate card
+    card.classList.remove('animating');
+    void card.offsetWidth; // reflow
+    card.classList.add('animating');
+  }
+
+  function advance() {
+    if (currentStep < steps.length - 1) {
+      currentStep++;
+      renderStep(currentStep);
+    } else {
+      dismiss();
+    }
+  }
+
+  function dismiss() {
+    localStorage.setItem(STORAGE_KEY, '1');
+    overlay.hidden = true;
+    spotlight.innerHTML = '';
+  }
+
+  function start() {
+    steps = isMobile() ? STEPS_MOBILE : STEPS_DESKTOP;
+    currentStep = 0;
+    overlay.hidden = false;
+    renderStep(0);
+  }
+
+  nextBtn.addEventListener('click', advance);
+  skipBtn.addEventListener('click', dismiss);
+
+  // Reposition on resize
+  window.addEventListener('resize', () => {
+    if (!overlay.hidden) renderStep(currentStep);
+  });
+
+  // Start after a short delay so the map finishes loading/painting
+  setTimeout(start, 900);
+})();

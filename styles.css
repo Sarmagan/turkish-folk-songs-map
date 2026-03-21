@@ -239,6 +239,7 @@ header p {
   cursor: grab;
   user-select: none;
   transform-origin: 0 0;
+  will-change: transform;
   transition: none; /* transitions are controlled by JS */
 }
 
@@ -253,7 +254,6 @@ header p {
   height: auto;
   display: block;
   filter: drop-shadow(0 6px 24px rgba(0,0,0,0.6));
-  shape-rendering: geometricPrecision;
 }
 
 #map-container svg path {
@@ -1918,4 +1918,173 @@ body:not(.choropleth-on) #legend-choropleth-wrap {
   .modal-grid { grid-template-columns: 1fr 1fr; gap: 10px 14px; }
   .share-preview-overlay { padding: 20px 16px 20px; border-radius: 20px 20px 0 0; }
   #share-canvas { max-width: 280px; }
+}
+/* ═══════════════════════════════════════════════════════════════
+   ONBOARDING TOUR
+   ═══════════════════════════════════════════════════════════════ */
+
+#onboarding-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 999;
+  pointer-events: none; /* let spotlight punch through by default */
+}
+
+#onboarding-overlay[hidden] { display: none; }
+
+/* Dark backdrop rendered via a clip-path hole around the spotlight */
+#onboarding-spotlight {
+  position: absolute;
+  inset: 0;
+  /* filled by JS with a radial/rect cutout using clip-path + background */
+  pointer-events: auto;
+  transition: clip-path 0.35s cubic-bezier(.4,0,.2,1);
+}
+
+/* ── CARD ── */
+#onboarding-card {
+  position: absolute;
+  width: 260px;
+  background: var(--panel-bg);
+  border: 1px solid var(--surface);
+  border-radius: 14px;
+  padding: 20px 20px 16px;
+  box-shadow: 0 12px 48px rgba(0,0,0,0.55);
+  pointer-events: auto;
+  transition: top 0.35s cubic-bezier(.4,0,.2,1),
+              left 0.35s cubic-bezier(.4,0,.2,1),
+              opacity 0.2s ease,
+              transform 0.2s ease;
+  border-top: 3px solid var(--highlight);
+}
+
+/* ── STEP DOTS ── */
+#onboarding-step-indicator {
+  display: flex;
+  gap: 5px;
+  margin-bottom: 14px;
+}
+
+.ob-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--surface);
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.ob-dot.active {
+  background: var(--highlight);
+  transform: scale(1.3);
+}
+
+/* ── ICON ── */
+#onboarding-icon {
+  font-size: 1.6rem;
+  line-height: 1;
+  margin-bottom: 8px;
+}
+
+/* ── TITLE ── */
+#onboarding-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 0.95rem;
+  color: var(--text-primary);
+  margin-bottom: 7px;
+  line-height: 1.3;
+}
+
+/* ── BODY ── */
+#onboarding-body {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin-bottom: 16px;
+}
+
+/* ── ACTIONS ── */
+#onboarding-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+#onboarding-skip {
+  background: none;
+  border: none;
+  font-family: 'Lato', sans-serif;
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 4px 0;
+  opacity: 0.7;
+  transition: opacity var(--transition), color var(--transition);
+}
+
+#onboarding-skip:hover {
+  opacity: 1;
+  color: var(--accent);
+}
+
+#onboarding-next {
+  background: var(--highlight);
+  border: none;
+  border-radius: 20px;
+  font-family: 'Lato', sans-serif;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #fff;
+  padding: 8px 18px;
+  cursor: pointer;
+  letter-spacing: 0.03em;
+  transition: opacity var(--transition), transform var(--transition);
+}
+
+#onboarding-next:hover {
+  opacity: 0.88;
+  transform: scale(1.04);
+}
+
+/* Arrow pointer on card */
+#onboarding-card::before {
+  content: '';
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background: var(--panel-bg);
+  border-left: 1px solid var(--surface);
+  border-top: 1px solid var(--surface);
+  transform: rotate(45deg);
+  transition: top 0.35s cubic-bezier(.4,0,.2,1),
+              left 0.35s cubic-bezier(.4,0,.2,1),
+              bottom 0.35s cubic-bezier(.4,0,.2,1),
+              right 0.35s cubic-bezier(.4,0,.2,1);
+}
+
+/* Arrow placement classes, set by JS */
+#onboarding-card.arrow-top::before    { top: -6px; left: 24px; }
+#onboarding-card.arrow-bottom::before { bottom: -6px; top: auto; left: 24px; transform: rotate(225deg); border-color: var(--surface); }
+#onboarding-card.arrow-left::before   { left: -6px; top: 24px; transform: rotate(-45deg); }
+#onboarding-card.arrow-right::before  { right: -6px; left: auto; top: 24px; transform: rotate(135deg); }
+#onboarding-card.arrow-none::before   { display: none; }
+
+/* Fade-in animation */
+@keyframes ob-card-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+#onboarding-card.animating {
+  animation: ob-card-in 0.25s ease forwards;
+}
+
+/* ── MOBILE adjustments ── */
+@media (max-width: 700px) {
+  #onboarding-card {
+    width: calc(100vw - 32px);
+    left: 16px !important;
+    right: 16px;
+  }
+  #onboarding-card::before { display: none; }
 }
