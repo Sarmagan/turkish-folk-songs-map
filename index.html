@@ -530,6 +530,55 @@
   <!-- ═══ TOOLTIP (populated by JS) ═══ -->
   <div id="tooltip" role="tooltip" aria-live="polite"></div>
 
+  <!-- ═══ SONG DETAIL MODAL ═══ -->
+  <div id="song-modal" class="song-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title" hidden>
+    <div class="song-modal-backdrop"></div>
+    <div class="song-modal-sheet">
+      <button class="song-modal-close" id="modal-close" aria-label="Kapat">✕</button>
+
+      <div class="song-modal-header">
+        <div class="song-modal-note">♩</div>
+        <h2 class="song-modal-title" id="modal-title"></h2>
+        <div class="song-modal-region" id="modal-region"></div>
+      </div>
+
+      <div class="song-modal-body">
+
+        <!-- Musical properties block -->
+        <section class="modal-section" id="modal-section-musical">
+          <h3 class="modal-section-title">Müzikal Özellikler</h3>
+          <div class="modal-grid" id="modal-grid-musical"></div>
+        </section>
+
+        <!-- Range / pitch block -->
+        <section class="modal-section" id="modal-section-range">
+          <h3 class="modal-section-title">Ses Alanı</h3>
+          <div class="modal-range-row" id="modal-range-row"></div>
+        </section>
+
+        <!-- People block -->
+        <section class="modal-section" id="modal-section-people">
+          <h3 class="modal-section-title">Kişiler</h3>
+          <div class="modal-grid" id="modal-grid-people"></div>
+        </section>
+
+        <!-- Lyrics block -->
+        <section class="modal-section" id="modal-section-lyrics">
+          <h3 class="modal-section-title">Sözler</h3>
+          <div class="modal-lyrics" id="modal-lyrics"></div>
+        </section>
+
+      </div>
+
+      <div class="song-modal-footer">
+        <span class="modal-rep-no" id="modal-rep-no"></span>
+        <a class="modal-source-link" id="modal-source-link" href="#" target="_blank" rel="noopener noreferrer">
+          Repertükül'de Gör ↗
+        </a>
+      </div>
+    </div>
+  </div>
+
   <script src="app.js"></script>
 </body>
 </html>

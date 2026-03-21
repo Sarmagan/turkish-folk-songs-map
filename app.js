@@ -285,35 +285,21 @@ function buildSongCard(song, highlightQuery, highlightScopes) {
     return highlightText(text, highlightQuery);
   };
 
-  const rows = [
-    ['İlçe / Köy',    fmt(song.ilcesi_koyu)],
-    ['Makam',         fmt(song.makamsal_dizi)],
-    ['Konu / Tür',    fmt(song.konusu_turu)],
-    ['Usul',          fmt(song.usul)],
-    ['Karar Sesi',    fmt(song.karar_sesi)],
-    ['Ses Genişliği', fmt(song.ses_genisligi)],
-    ['Kaynak Kişi',   fmt(song.kaynak_kisi)?.replace(/\n/g, ', ')],
-    ['Derleyen',      fmt(song.derleyen)],
-    ['Notaya Alan',   fmt(song.notaya_alan)?.replace(/\n/g, ', ')],
-    ['İcra Eden',     fmt(song.icra_eden)],
-    ['Repertuar No',  fmt(song.repertuar_no)],
+  // Compact card only shows the most scannable fields
+  const cardRows = [
+    ['Makam',       fmt(song.makamsal_dizi)],
+    ['Konu / Tür',  fmt(song.konusu_turu)],
+    ['Usul',        fmt(song.usul)],
+    ['Kaynak Kişi', fmt(song.kaynak_kisi)?.replace(/\n/g, ', ')],
+    ['İcra Eden',   fmt(song.icra_eden)],
   ].filter(([, v]) => v);
 
   const fieldMap = {
-    'İlçe / Köy':    null,
-    'Makam':         null,
-    'Konu / Tür':    null,
-    'Usul':          null,
-    'Karar Sesi':    null,
-    'Ses Genişliği': null,
-    'Kaynak Kişi':   'kaynak_kisi',
-    'Derleyen':      'derleyen',
-    'Notaya Alan':   null,
-    'İcra Eden':     'icra_eden',
-    'Repertuar No':  null,
+    'Kaynak Kişi': 'kaynak_kisi',
+    'İcra Eden':   'icra_eden',
   };
 
-  const metaHTML = rows.map(([label, val]) => {
+  const metaHTML = cardRows.map(([label, val]) => {
     const field = fieldMap[label];
     const displayVal = (field && highlightQuery && highlightScopes?.includes(field))
       ? highlightText(val, highlightQuery)
@@ -326,20 +312,150 @@ function buildSongCard(song, highlightQuery, highlightScopes) {
 
   const title = hl(song.song_title, 'song_title');
 
-  const lyricsHTML = fmt(song.lyrics)
-    ? `<button class="song-lyrics-toggle" onclick="this.nextElementSibling.classList.toggle('open');this.classList.toggle('open')">Sözleri Göster</button>
-       <div class="song-lyrics">${song.lyrics.replace(/\n/g, '<br>')}</div>`
-    : '';
+  // Store song index so the modal can look it up
+  const idx = allSongs.indexOf(song);
 
-  const linkHTML = fmt(song.source_url) && song.source_url !== '#'
-    ? `<a class="song-source-link" href="${song.source_url}" target="_blank" rel="noopener noreferrer">Repertükül'de Gör ↗</a>`
-    : '';
-
-  return `<div class="song-card">
+  return `<div class="song-card" onclick="openSongModal(${idx})" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' ')openSongModal(${idx})">
     <div class="song-card-title">♩ ${title}</div>
     <div class="song-meta">${metaHTML}</div>
-    ${lyricsHTML}${linkHTML}
+    <div class="song-card-cta">Detayları gör ↗</div>
   </div>`;
+}
+
+/* ── SONG DETAIL MODAL ───────────────────────────────────────────────────────── */
+
+let modalCloseTimer = null;
+
+function openSongModal(idx) {
+  const song = allSongs[idx];
+  if (!song) return;
+
+  const modal     = document.getElementById('song-modal');
+  const backdrop  = modal.querySelector('.song-modal-backdrop');
+
+  // ── Header ──
+  document.getElementById('modal-title').textContent  = song.song_title || '—';
+  const region = fmt(song.yoresi_ili)
+    ? toTitleCase(song.yoresi_ili.trim())
+    : null;
+  const regionEl = document.getElementById('modal-region');
+  if (region) {
+    regionEl.textContent = '📍 ' + region;
+    regionEl.style.display = '';
+  } else {
+    regionEl.style.display = 'none';
+  }
+
+  // ── Musical properties grid ──
+  const musicalFields = [
+    ['Makam / Dizi',  fmt(song.makamsal_dizi)],
+    ['Konu / Tür',    fmt(song.konusu_turu)],
+    ['Usul',          fmt(song.usul)],
+    ['Karar Sesi',    fmt(song.karar_sesi)],
+    ['Bitiş Sesi',    fmt(song.bitis_sesi)],
+    ['İlçe / Köy',    fmt(song.ilcesi_koyu)],
+  ].filter(([, v]) => v);
+
+  const musicalGrid = document.getElementById('modal-grid-musical');
+  musicalGrid.innerHTML = musicalFields.map(([l, v]) =>
+    `<div class="modal-cell">
+      <span class="modal-cell-label">${l}</span>
+      <span class="modal-cell-value">${escapeHtml(v)}</span>
+    </div>`
+  ).join('');
+  document.getElementById('modal-section-musical').style.display =
+    musicalFields.length ? '' : 'none';
+
+  // ── Range / pitch section ──
+  const enPes  = fmt(song.en_pes_ses);
+  const enTiz  = fmt(song.en_tiz_ses);
+  const sesGen = fmt(song.ses_genisligi);
+  const rangeRow = document.getElementById('modal-range-row');
+  const rangeSection = document.getElementById('modal-section-range');
+  if (enPes || enTiz || sesGen) {
+    rangeRow.innerHTML = `
+      ${enPes ? `<div class="modal-range-note">
+        <span class="modal-range-note-name">${escapeHtml(enPes)}</span>
+        <span class="modal-range-note-label">En Pes</span>
+      </div>` : ''}
+      ${(enPes || enTiz) ? `<div class="modal-range-bar-wrap">
+        <div class="modal-range-bar-track"><div class="modal-range-bar-fill"></div></div>
+        ${sesGen ? `<div class="modal-range-width">${escapeHtml(sesGen)}</div>` : ''}
+      </div>` : ''}
+      ${enTiz ? `<div class="modal-range-note">
+        <span class="modal-range-note-name">${escapeHtml(enTiz)}</span>
+        <span class="modal-range-note-label">En Tiz</span>
+      </div>` : ''}
+      ${fmt(song.karar_sesi) ? `<div class="modal-range-karar">
+        <span class="modal-range-karar-name">${escapeHtml(song.karar_sesi)}</span>
+        <span class="modal-range-karar-label">Karar</span>
+      </div>` : ''}
+    `;
+    rangeSection.style.display = '';
+  } else {
+    rangeSection.style.display = 'none';
+  }
+
+  // ── People grid ──
+  const peopleFields = [
+    ['Kaynak Kişi',  fmt(song.kaynak_kisi)?.replace(/\n/g, ', ')],
+    ['Derleyen',     fmt(song.derleyen)],
+    ['Notaya Alan',  fmt(song.notaya_alan)?.replace(/\n/g, ', ')],
+    ['İcra Eden',    fmt(song.icra_eden)],
+  ].filter(([, v]) => v);
+
+  const peopleGrid = document.getElementById('modal-grid-people');
+  peopleGrid.innerHTML = peopleFields.map(([l, v]) =>
+    `<div class="modal-cell">
+      <span class="modal-cell-label">${l}</span>
+      <span class="modal-cell-value">${escapeHtml(v)}</span>
+    </div>`
+  ).join('');
+  document.getElementById('modal-section-people').style.display =
+    peopleFields.length ? '' : 'none';
+
+  // ── Lyrics ──
+  const lyricsSection = document.getElementById('modal-section-lyrics');
+  const lyricsEl = document.getElementById('modal-lyrics');
+  if (fmt(song.lyrics)) {
+    lyricsEl.textContent = song.lyrics;
+    lyricsSection.style.display = '';
+  } else {
+    lyricsSection.style.display = 'none';
+  }
+
+  // ── Footer ──
+  const repEl = document.getElementById('modal-rep-no');
+  repEl.textContent = fmt(song.repertuar_no) ? `Repertuar No: ${song.repertuar_no}` : '';
+
+  const linkEl = document.getElementById('modal-source-link');
+  if (fmt(song.source_url) && song.source_url !== '#') {
+    linkEl.href = song.source_url;
+    linkEl.classList.remove('hidden');
+  } else {
+    linkEl.classList.add('hidden');
+  }
+
+  // ── Show ──
+  modal.removeAttribute('hidden');
+  modal.classList.remove('closing');
+  document.body.style.overflow = 'hidden';
+
+  // Scroll body back to top
+  const body = modal.querySelector('.song-modal-body');
+  if (body) body.scrollTop = 0;
+}
+
+function closeSongModal() {
+  const modal = document.getElementById('song-modal');
+  if (!modal || modal.hidden) return;
+  modal.classList.add('closing');
+  clearTimeout(modalCloseTimer);
+  modalCloseTimer = setTimeout(() => {
+    modal.setAttribute('hidden', '');
+    modal.classList.remove('closing');
+    document.body.style.overflow = '';
+  }, 200);
 }
 
 /* ── SIDE PANEL ─────────────────────────────────────────────────────────────── */
@@ -804,6 +920,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     applyTheme(lightMode, true);
   });
 
+  // ── MODAL CLOSE WIRING ──────────────────────────────────────────────────────
+  document.getElementById('modal-close')?.addEventListener('click', closeSongModal);
+  document.querySelector('.song-modal-backdrop') && document.getElementById('song-modal')
+    .querySelector('.song-modal-backdrop')
+    .addEventListener('click', closeSongModal);
+
   // Zoom buttons
   document.getElementById('btn-zoom-in').addEventListener('click', () => {
     const r = mapWrapper.getBoundingClientRect();
@@ -1008,6 +1130,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     e.preventDefault();
 
     if (e.key === 'Escape') {
+      const modal = document.getElementById('song-modal');
+      if (modal && !modal.hidden) { closeSongModal(); return; }
       hideTooltip();
       provincePaths.forEach(p => p.classList.remove('kb-focus'));
       kbIndex = -1;

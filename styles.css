@@ -932,10 +932,26 @@ body:not(.choropleth-on) #legend-choropleth-wrap {
   border-radius: 8px;
   padding: 12px;
   margin-bottom: 10px;
-  transition: border-color var(--transition);
+  cursor: pointer;
+  transition: border-color var(--transition), transform var(--transition), box-shadow var(--transition);
+  outline: none;
 }
 
-.song-card:hover { border-color: var(--card-border-hover); }
+.song-card:hover {
+  border-color: var(--card-border-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.18);
+}
+
+.song-card:focus-visible {
+  border-color: var(--highlight);
+  box-shadow: 0 0 0 2px var(--highlight);
+}
+
+.song-card:active {
+  transform: translateY(0);
+  box-shadow: none;
+}
 
 .song-card-title {
   font-size: 0.82rem;
@@ -1334,4 +1350,381 @@ body:not(.choropleth-on) #legend-choropleth-wrap {
 
 #province-labels.visible text {
   opacity: 1;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   SONG DETAIL MODAL
+   ═══════════════════════════════════════════════════════════════ */
+
+/* Make the song card title just a visual label — clicking is on the whole card */
+.song-card-title {
+  cursor: pointer;
+  transition: color var(--transition);
+}
+.song-card:hover .song-card-title {
+  color: var(--highlight);
+}
+
+/* "Detayları gör" CTA shown at card bottom */
+.song-card-cta {
+  margin-top: 8px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  opacity: 0;
+  transition: opacity var(--transition), color var(--transition);
+}
+.song-card:hover .song-card-cta,
+.song-card:focus-visible .song-card-cta {
+  opacity: 1;
+  color: var(--highlight);
+}
+
+/* ── MODAL OVERLAY ── */
+.song-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.song-modal[hidden] { display: none; }
+
+.song-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  animation: modal-backdrop-in 0.22s ease forwards;
+}
+
+@keyframes modal-backdrop-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* ── SHEET ── */
+.song-modal-sheet {
+  position: relative;
+  background: var(--panel-bg);
+  border: 1px solid var(--surface);
+  border-radius: 16px;
+  box-shadow: 0 24px 64px rgba(0,0,0,0.45);
+  width: 100%;
+  max-width: 680px;
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: modal-sheet-in 0.28s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+@keyframes modal-sheet-in {
+  from { opacity: 0; transform: translateY(24px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0)    scale(1);    }
+}
+
+.song-modal.closing .song-modal-sheet {
+  animation: modal-sheet-out 0.18s ease forwards;
+}
+.song-modal.closing .song-modal-backdrop {
+  animation: modal-backdrop-out 0.18s ease forwards;
+}
+
+@keyframes modal-sheet-out {
+  to { opacity: 0; transform: translateY(16px) scale(0.98); }
+}
+@keyframes modal-backdrop-out {
+  to { opacity: 0; }
+}
+
+/* ── CLOSE BUTTON ── */
+.song-modal-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 2;
+  background: var(--toggle-pill-bg);
+  border: 1px solid var(--surface);
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  transition: background var(--transition), color var(--transition), border-color var(--transition);
+  line-height: 1;
+}
+
+.song-modal-close:hover {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+/* ── HEADER ── */
+.song-modal-header {
+  padding: 32px 32px 24px;
+  border-bottom: 1px solid var(--surface);
+  flex-shrink: 0;
+  background: var(--panel-bg);
+}
+
+.song-modal-note {
+  font-size: 2rem;
+  line-height: 1;
+  margin-bottom: 10px;
+  opacity: 0.25;
+  color: var(--highlight);
+  user-select: none;
+}
+
+.song-modal-title {
+  font-family: 'Playfair Display', serif;
+  font-size: clamp(1.2rem, 3vw, 1.65rem);
+  color: var(--text-primary);
+  line-height: 1.25;
+  margin-bottom: 10px;
+  padding-right: 40px;
+}
+
+.song-modal-region {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--highlight);
+  background: var(--card-bg);
+  border: 1px solid var(--surface);
+  border-radius: 20px;
+  padding: 4px 12px;
+}
+
+/* ── SCROLLABLE BODY ── */
+.song-modal-body {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 0 32px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.song-modal-body::-webkit-scrollbar { width: 5px; }
+.song-modal-body::-webkit-scrollbar-track { background: transparent; }
+.song-modal-body::-webkit-scrollbar-thumb { background: var(--surface); border-radius: 3px; }
+
+/* ── SECTIONS ── */
+.modal-section {
+  padding: 20px 0 4px;
+  border-bottom: 1px solid var(--surface);
+}
+
+.modal-section:last-child {
+  border-bottom: none;
+}
+
+.modal-section-title {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  opacity: 0.7;
+  margin-bottom: 14px;
+}
+
+/* ── METADATA GRID ── */
+.modal-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 12px 20px;
+}
+
+.modal-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.modal-cell-label {
+  font-size: 0.63rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  opacity: 0.75;
+}
+
+.modal-cell-value {
+  font-size: 0.88rem;
+  color: var(--text-primary);
+  line-height: 1.4;
+}
+
+/* ── RANGE VISUALISER ── */
+.modal-range-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0 16px;
+  flex-wrap: wrap;
+}
+
+.modal-range-note {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  min-width: 44px;
+}
+
+.modal-range-note-name {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.15rem;
+  color: var(--text-primary);
+  line-height: 1;
+}
+
+.modal-range-note-label {
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  opacity: 0.7;
+}
+
+.modal-range-bar-wrap {
+  flex: 1;
+  min-width: 80px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.modal-range-bar-track {
+  height: 6px;
+  background: var(--surface);
+  border-radius: 3px;
+  overflow: visible;
+  position: relative;
+}
+
+.modal-range-bar-fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  width: 100%;
+  background: linear-gradient(90deg, var(--highlight), var(--accent));
+  border-radius: 3px;
+}
+
+.modal-range-width {
+  font-size: 0.7rem;
+  color: var(--highlight);
+  font-weight: 700;
+  text-align: center;
+}
+
+.modal-range-karar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  min-width: 44px;
+}
+
+.modal-range-karar-name {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.15rem;
+  color: var(--accent);
+  line-height: 1;
+}
+
+.modal-range-karar-label {
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  opacity: 0.7;
+}
+
+/* ── LYRICS ── */
+.modal-lyrics {
+  font-size: 0.84rem;
+  line-height: 1.9;
+  color: var(--text-secondary);
+  background: var(--lyrics-bg);
+  border-left: 3px solid var(--highlight);
+  border-radius: 0 8px 8px 0;
+  padding: 14px 18px;
+  margin-bottom: 20px;
+  white-space: pre-line;
+}
+
+/* ── FOOTER ── */
+.song-modal-footer {
+  padding: 14px 32px;
+  border-top: 1px solid var(--surface);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-shrink: 0;
+  background: var(--panel-bg);
+  flex-wrap: wrap;
+}
+
+.modal-rep-no {
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  opacity: 0.6;
+  letter-spacing: 0.04em;
+}
+
+.modal-source-link {
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: var(--highlight);
+  text-decoration: none;
+  letter-spacing: 0.02em;
+  transition: opacity var(--transition);
+  opacity: 0.85;
+}
+
+.modal-source-link:hover { opacity: 1; text-decoration: underline; }
+.modal-source-link.hidden { display: none; }
+
+/* ── MOBILE ── */
+@media (max-width: 700px) {
+  .song-modal { padding: 0; align-items: flex-end; }
+  .song-modal-sheet {
+    max-height: 92vh;
+    border-radius: 20px 20px 0 0;
+    animation: modal-mobile-in 0.3s cubic-bezier(0.34, 1.2, 0.64, 1) forwards;
+  }
+  @keyframes modal-mobile-in {
+    from { opacity: 0; transform: translateY(60px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .song-modal-header { padding: 24px 20px 18px; }
+  .song-modal-body   { padding: 0 20px 8px; }
+  .song-modal-footer { padding: 12px 20px; }
+  .modal-grid { grid-template-columns: 1fr 1fr; gap: 10px 14px; }
 }
