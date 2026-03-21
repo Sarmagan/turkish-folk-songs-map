@@ -191,10 +191,13 @@ function buildProvinceLabels() {
 
 function updateLabelScale() {
   if (!labelGroup) return;
-  // fontSize in SVG units so that rendered size ≈ LABEL_BASE_PX at any zoom
-  const svgFontSize = (LABEL_BASE_PX / SVG_UNIT_PX) / scale;
-  // stroke-width also counter-scales for the outline effect
-  const svgStrokeW  = (2.5 / SVG_UNIT_PX) / scale;
+  // Dampen the counter-scale so labels grow with zoom rather than staying
+  // pinned to a fixed screen size. At scale=1 they render at LABEL_BASE_PX;
+  // at higher zoom they grow proportionally to sqrt(scale), so they're always
+  // readable but also visibly larger when the map is zoomed in.
+  const dampened    = Math.sqrt(scale);
+  const svgFontSize = (LABEL_BASE_PX / SVG_UNIT_PX) / dampened;
+  const svgStrokeW  = (2.5 / SVG_UNIT_PX) / dampened;
 
   labelGroup.querySelectorAll('text').forEach(t => {
     t.setAttribute('font-size', svgFontSize);

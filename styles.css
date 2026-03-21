@@ -239,7 +239,6 @@ header p {
   cursor: grab;
   user-select: none;
   transform-origin: 0 0;
-  will-change: transform;
   transition: none; /* transitions are controlled by JS */
 }
 
@@ -254,6 +253,7 @@ header p {
   height: auto;
   display: block;
   filter: drop-shadow(0 6px 24px rgba(0,0,0,0.6));
+  shape-rendering: geometricPrecision;
 }
 
 #map-container svg path {
