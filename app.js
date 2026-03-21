@@ -155,27 +155,11 @@ const PROVINCE_COORDS = {
 };
 
 /* ── PROVINCE LABEL DISPLAY NAMES ───────────────────────────────────────────── */
-// Maps PROVINCE_COORDS keys → the label text to render on the map.
-// Shorter/abbreviated forms for provinces whose full name won't fit.
-const LABEL_TEXT = {
-  "Afyonkarahisar": "Afyon",
-  "K. Maras":       "K.Maraş",
-  "Sanliurfa":      "Ş.Urfa",
-  "Diyarbakir":     "Diyarbakır",
-  "Kinkkale":       "Kırıkkale",
-  "Kirklareli":     "Kırklareli",
-  "Kirsehir":       "Kırşehir",
-  "Gümüshane":      "Gümüşhane",
-  "Kastamonu":      "Kastamonu",
-  "Kahramanmaraş":  "K.Maraş",
-};
-
 /* ── LABEL FUNCTIONS ────────────────────────────────────────────────────────── */
 
 // The SVG viewBox is 1000×422. At scale=1 the SVG renders at ~960px wide,
 // so 1 SVG unit ≈ 0.96 CSS px. We target ~11px rendered text at scale=1,
 // which means fontSize = 11 / scale (counter-scaled).
-// Clamped so labels don't get absurdly huge when zoomed far out.
 const LABEL_BASE_PX = 11;   // desired rendered size in CSS pixels at scale=1
 const SVG_UNIT_PX   = 960 / 1000; // approx CSS-px per SVG viewBox unit at scale=1
 
@@ -190,7 +174,8 @@ function buildProvinceLabels() {
   const ns = 'http://www.w3.org/2000/svg';
 
   Object.entries(PROVINCE_COORDS).forEach(([svgName, [cx, cy]]) => {
-    const label = LABEL_TEXT[svgName] || svgName;
+    // resolveName handles all ASCII/broken SVG names → correct Turkish display name
+    const label = resolveName(svgName);
 
     const text = document.createElementNS(ns, 'text');
     text.setAttribute('x', cx);
@@ -223,7 +208,7 @@ let allSongs        = [];
 let scale = 1, translateX = 0, translateY = 0;
 let activePanel  = null;
 let drawerOpen   = false;
-let labelsVisible = false;
+let labelsVisible = true;
 const MIN_SCALE  = 0.5, MAX_SCALE = 8, ZOOM_STEP = 0.25;
 
 /* ── DOM REFS (set inside DOMContentLoaded) ─────────────────────────────────── */
@@ -772,6 +757,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   applyTransform();
   wireProvinces();
   buildProvinceLabels();
+  if (labelGroup) labelGroup.classList.add('visible');
 
   // Label toggle
   labelToggle = document.getElementById('toggle-labels');
