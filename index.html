@@ -20,6 +20,10 @@
     </div>
 
     <div class="header-controls">
+      <button id="theme-toggle" title="Açık/koyu tema">
+        <span class="theme-toggle-icon">☀</span>
+        <span class="theme-toggle-text">Açık</span>
+      </button>
       <label class="label-toggle" id="label-toggle-wrap" title="İl isimlerini haritada göster">
         <input type="checkbox" id="toggle-labels" autocomplete="off" checked />
         <span class="label-toggle-track">
@@ -436,11 +440,11 @@
           </div>
         </div>
         <div class="legend-item legend-item--sm">
-          <div class="legend-swatch" style="background:#4a7c9e;"></div>
+          <div class="legend-swatch swatch-empty"></div>
           <span>Henüz eklenmedi</span>
         </div>
         <div class="legend-item legend-item--sm">
-          <div class="legend-swatch" style="background:#e94560;"></div>
+          <div class="legend-swatch swatch-active"></div>
           <span>Seçili il</span>
         </div>
 

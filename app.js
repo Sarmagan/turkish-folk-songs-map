@@ -781,6 +781,29 @@ document.addEventListener('DOMContentLoaded', async () => {
   drawerBackdrop = document.getElementById('drawer-backdrop');
   sidePanel      = document.getElementById('side-panel');
 
+  // ── THEME TOGGLE ────────────────────────────────────────────────────────────
+  const themeBtn      = document.getElementById('theme-toggle');
+  const themeIcon     = themeBtn?.querySelector('.theme-toggle-icon');
+  const themeText     = themeBtn?.querySelector('.theme-toggle-text');
+  let lightMode = localStorage.getItem('turku-theme') === 'light';
+
+  function applyTheme(light, animate) {
+    if (animate) {
+      document.body.style.transition = 'background 0.35s ease, color 0.35s ease';
+    }
+    document.body.classList.toggle('light-mode', light);
+    if (themeIcon) themeIcon.textContent = light ? '🌙' : '☀';
+    if (themeText) themeText.textContent = light ? 'Koyu' : 'Açık';
+    localStorage.setItem('turku-theme', light ? 'light' : 'dark');
+  }
+
+  applyTheme(lightMode, false);
+
+  themeBtn?.addEventListener('click', () => {
+    lightMode = !lightMode;
+    applyTheme(lightMode, true);
+  });
+
   // Zoom buttons
   document.getElementById('btn-zoom-in').addEventListener('click', () => {
     const r = mapWrapper.getBoundingClientRect();
