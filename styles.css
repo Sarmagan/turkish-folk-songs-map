@@ -1139,6 +1139,22 @@ body:not(.choropleth-on) #legend-choropleth-wrap {
 /* ===== RESPONSIVE — MOBILE DRAWER ===== */
 @media (max-width: 700px) {
 
+  /* Show header controls on mobile, but keep it compact */
+  .header-controls {
+    display: flex !important;
+  }
+
+  /* Hide the text, only show the ☀️/🌙 icon */
+  .theme-toggle-text {
+    display: none;
+  }
+
+  /* Keep the other two toggles (City Names & Density) hidden on mobile */
+  #label-toggle-wrap, 
+  #choropleth-toggle-wrap {
+    display: none !important;
+  }
+
   /* Never show tooltip on touch screens */
   #tooltip { display: none !important; }
 

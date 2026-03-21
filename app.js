@@ -1419,21 +1419,73 @@ document.addEventListener('DOMContentLoaded', async () => {
     mapContainer.classList.add('dragging');
   });
 
+  // --- MOBILE PINCH-TO-ZOOM & PAN LOGIC ---
+  let initialPinchDistance = 0;
+  let pinchMidX = 0;
+  let pinchMidY = 0;
+
   mapWrapper.addEventListener('touchstart', e => {
-    if (e.touches.length !== 1) return;
-    isDragging = true;
-    dragStartX = e.touches[0].clientX; dragStartY = e.touches[0].clientY;
-    dragOriginX = translateX; dragOriginY = translateY;
-  }, { passive: true });
+    if (e.touches.length === 1) {
+      // 1 Finger = Pan the map
+      isDragging = true;
+      dragStartX = e.touches[0].clientX; dragStartY = e.touches[0].clientY;
+      dragOriginX = translateX; dragOriginY = translateY;
+    } else if (e.touches.length === 2) {
+      // 2 Fingers = Pinch to zoom
+      isDragging = false;
+      e.preventDefault(); // Stop the entire browser window from zooming
+      
+      // Calculate starting distance between fingers
+      initialPinchDistance = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+      
+      // Calculate the center point between the two fingers
+      const r = mapWrapper.getBoundingClientRect();
+      pinchMidX = ((e.touches[0].clientX + e.touches[1].clientX) / 2) - r.left;
+      pinchMidY = ((e.touches[0].clientY + e.touches[1].clientY) / 2) - r.top;
+    }
+  }, { passive: false }); // <--- passive: false is required here so we can preventDefault()
 
   mapWrapper.addEventListener('touchmove', e => {
-    if (!isDragging || e.touches.length !== 1) return;
-    translateX = dragOriginX + (e.touches[0].clientX - dragStartX);
-    translateY = dragOriginY + (e.touches[0].clientY - dragStartY);
-    applyTransform();
-  }, { passive: true });
+    if (e.touches.length === 1 && isDragging) {
+      // 1 Finger = Pan the map
+      translateX = dragOriginX + (e.touches[0].clientX - dragStartX);
+      translateY = dragOriginY + (e.touches[0].clientY - dragStartY);
+      applyTransform();
+    } else if (e.touches.length === 2) {
+      // 2 Fingers = Pinch to zoom
+      e.preventDefault();
+      
+      const currentDistance = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+      
+      // Calculate how much to zoom based on finger movement
+      const zoomFactor = currentDistance / initialPinchDistance;
+      const newScale = scale * zoomFactor;
+      
+      // Use your existing zoomAt function so it zooms smoothly into the center of your fingers!
+      zoomAt(pinchMidX, pinchMidY, newScale);
+      
+      // Update variables for the next frame of animation
+      initialPinchDistance = currentDistance;
+      
+      const r = mapWrapper.getBoundingClientRect();
+      pinchMidX = ((e.touches[0].clientX + e.touches[1].clientX) / 2) - r.left;
+      pinchMidY = ((e.touches[0].clientY + e.touches[1].clientY) / 2) - r.top;
+    }
+  }, { passive: false });
 
-  mapWrapper.addEventListener('touchend', () => { isDragging = false; });
+  mapWrapper.addEventListener('touchend', e => { 
+    // If the user lifts one finger, stop dragging until they put it back down
+    if (e.touches.length < 2) {
+      isDragging = false; 
+    }
+  });
+
 
   // Load data
   let rawArray = [];
