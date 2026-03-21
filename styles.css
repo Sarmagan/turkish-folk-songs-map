@@ -1691,6 +1691,13 @@ body:not(.choropleth-on) #legend-choropleth-wrap {
   flex-wrap: wrap;
 }
 
+.modal-footer-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
 .modal-rep-no {
   font-size: 0.7rem;
   color: var(--text-secondary);
@@ -1711,6 +1718,127 @@ body:not(.choropleth-on) #legend-choropleth-wrap {
 .modal-source-link:hover { opacity: 1; text-decoration: underline; }
 .modal-source-link.hidden { display: none; }
 
+/* Share button */
+.modal-share-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  background: var(--accent);
+  border: none;
+  border-radius: 20px;
+  color: #fff;
+  font-family: 'Lato', sans-serif;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: opacity var(--transition), transform var(--transition);
+  white-space: nowrap;
+}
+.modal-share-btn:hover  { opacity: 0.88; transform: scale(1.04); }
+.modal-share-btn:active { opacity: 1;    transform: scale(0.97); }
+
+.share-btn-icon {
+  font-size: 0.9rem;
+  line-height: 1;
+}
+
+/* ── SHARE PREVIEW OVERLAY ── */
+.share-preview-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  background: var(--panel-bg);
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  padding: 28px 24px 24px;
+  animation: share-overlay-in 0.22s ease forwards;
+}
+
+.share-preview-overlay[hidden] { display: none; }
+
+@keyframes share-overlay-in {
+  from { opacity: 0; transform: scale(0.97); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+.share-preview-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  max-width: 400px;
+}
+
+/* Canvas preview — scaled down to fit the overlay */
+#share-canvas {
+  width: 100%;
+  max-width: 360px;
+  height: auto;
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.35);
+  display: block;
+}
+
+.share-preview-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.share-download-btn,
+.share-native-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 18px;
+  border-radius: 20px;
+  border: none;
+  font-family: 'Lato', sans-serif;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity var(--transition), transform var(--transition);
+  white-space: nowrap;
+}
+
+.share-download-btn {
+  background: var(--highlight);
+  color: #fff;
+}
+
+.share-native-btn {
+  background: var(--surface);
+  color: var(--text-primary);
+  border: 1px solid var(--surface);
+}
+
+.share-download-btn:hover,
+.share-native-btn:hover { opacity: 0.85; transform: scale(1.03); }
+
+/* Hide native share button if Web Share API not available */
+.share-native-btn.hidden { display: none; }
+
+.share-close-btn {
+  background: none;
+  border: 1px solid var(--surface);
+  border-radius: 20px;
+  color: var(--text-secondary);
+  font-family: 'Lato', sans-serif;
+  font-size: 0.75rem;
+  padding: 8px 16px;
+  cursor: pointer;
+  transition: color var(--transition), border-color var(--transition);
+}
+.share-close-btn:hover { color: var(--text-primary); border-color: var(--highlight); }
+
 /* ── MOBILE ── */
 @media (max-width: 700px) {
   .song-modal { padding: 0; align-items: flex-end; }
@@ -1727,4 +1855,6 @@ body:not(.choropleth-on) #legend-choropleth-wrap {
   .song-modal-body   { padding: 0 20px 8px; }
   .song-modal-footer { padding: 12px 20px; }
   .modal-grid { grid-template-columns: 1fr 1fr; gap: 10px 14px; }
+  .share-preview-overlay { padding: 20px 16px 20px; border-radius: 20px 20px 0 0; }
+  #share-canvas { max-width: 280px; }
 }

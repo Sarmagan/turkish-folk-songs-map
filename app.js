@@ -210,6 +210,7 @@ let activePanel  = null;
 let drawerOpen   = false;
 let labelsVisible     = true;
 let choroplethVisible = false;
+let currentModalSongIdx = -1;
 const MIN_SCALE  = 0.5, MAX_SCALE = 8, ZOOM_STEP = 0.25;
 
 /* ── DOM REFS (set inside DOMContentLoaded) ─────────────────────────────────── */
@@ -329,6 +330,10 @@ let modalCloseTimer = null;
 function openSongModal(idx, updateUrl = true) {
   const song = allSongs[idx];
   if (!song) return;
+  currentModalSongIdx = idx;
+
+  // Hide share overlay if previously open
+  document.getElementById('share-preview-overlay')?.setAttribute('hidden', '');
 
   const modal     = document.getElementById('song-modal');
   const backdrop  = modal.querySelector('.song-modal-backdrop');
@@ -967,6 +972,250 @@ function selectProvince(path, svgName, updateUrl = true) {
   if (updateUrl) setHash(slugify(resolveName(svgName)));
 }
 
+/* ── SHARE CARD GENERATOR ────────────────────────────────────────────────────
+   Draws a 1080×1080 canvas card and shows the preview overlay.
+   Always uses the dark-navy palette so cards look consistent regardless
+   of the user's current theme choice.
+   ─────────────────────────────────────────────────────────────────────────── */
+function generateShareCard(song) {
+  const canvas  = document.getElementById('share-canvas');
+  const overlay = document.getElementById('share-preview-overlay');
+  const nativeBtn = document.getElementById('share-native-btn');
+
+  // Show/hide native share button based on API availability
+  if (nativeBtn) {
+    nativeBtn.classList.toggle('hidden', !navigator.canShare);
+  }
+
+  const W = 1080, H = 1080;
+  canvas.width  = W;
+  canvas.height = H;
+  const ctx = canvas.getContext('2d');
+
+  // ── Palette (always dark, looks great on social) ──
+  const C = {
+    bg:        '#0f1829',
+    panel:     '#16213e',
+    surface:   '#0f3460',
+    accent:    '#e94560',
+    highlight: '#f5a623',
+    textPri:   '#f0f0f0',
+    textSec:   '#a8b2c1',
+    border:    '#1a2d50',
+  };
+
+  // ── Background gradient ──
+  const bgGrad = ctx.createRadialGradient(W/2, H*0.55, 0, W/2, H*0.55, W*0.72);
+  bgGrad.addColorStop(0,   '#0d2137');
+  bgGrad.addColorStop(1,   '#060d18');
+  ctx.fillStyle = bgGrad;
+  ctx.fillRect(0, 0, W, H);
+
+  // ── Subtle dot-grid texture ──
+  ctx.fillStyle = 'rgba(255,255,255,0.022)';
+  const GRID = 36;
+  for (let x = GRID; x < W; x += GRID) {
+    for (let y = GRID; y < H; y += GRID) {
+      ctx.beginPath();
+      ctx.arc(x, y, 1.4, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  // ── Ornamental corner brackets ──
+  const drawBracket = (ox, oy, flipX, flipY) => {
+    const L = 72, T = 4, M = 22;
+    ctx.save();
+    ctx.translate(ox, oy);
+    ctx.scale(flipX ? -1 : 1, flipY ? -1 : 1);
+    ctx.strokeStyle = C.highlight;
+    ctx.lineWidth   = T;
+    ctx.lineCap     = 'square';
+    ctx.globalAlpha = 0.55;
+    ctx.beginPath(); ctx.moveTo(M, 0); ctx.lineTo(0, 0); ctx.lineTo(0, M); ctx.stroke();
+    ctx.globalAlpha = 0.25;
+    ctx.beginPath(); ctx.moveTo(L, 0); ctx.lineTo(0, 0); ctx.lineTo(0, L); ctx.stroke();
+    ctx.restore();
+  };
+  const PAD = 48;
+  drawBracket(PAD, PAD,       false, false);
+  drawBracket(W-PAD, PAD,     true,  false);
+  drawBracket(PAD, H-PAD,     false, true);
+  drawBracket(W-PAD, H-PAD,   true,  true);
+
+  // ── Giant faint ♩ watermark ──
+  ctx.save();
+  ctx.font         = 'bold 520px serif';
+  ctx.fillStyle    = 'rgba(245,166,35,0.045)';
+  ctx.textAlign    = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('♩', W/2 + 30, H/2 + 60);
+  ctx.restore();
+
+  // ── Thin full-width accent rule at top ──
+  const topRule = ctx.createLinearGradient(0, 0, W, 0);
+  topRule.addColorStop(0,    'transparent');
+  topRule.addColorStop(0.2,  C.accent);
+  topRule.addColorStop(0.8,  C.highlight);
+  topRule.addColorStop(1,    'transparent');
+  ctx.fillStyle   = topRule;
+  ctx.fillRect(0, 0, W, 5);
+
+  // ── Province badge ──
+  const region = fmt(song.yoresi_ili) ? toTitleCase(song.yoresi_ili.trim()) : null;
+  if (region) {
+    const BADGE_Y = 148, BADGE_X = W / 2;
+    ctx.font         = 'bold 26px "Lato", sans-serif';
+    ctx.textAlign    = 'center';
+    ctx.textBaseline = 'middle';
+    const badgeText  = ('📍 ' + region).toLocaleUpperCase('tr-TR');
+    const badgeW     = ctx.measureText(badgeText).width + 48;
+    const badgeH     = 46;
+    const bx = BADGE_X - badgeW / 2;
+    const by = BADGE_Y - badgeH / 2;
+
+    // pill background
+    ctx.beginPath();
+    ctx.roundRect(bx, by, badgeW, badgeH, badgeH / 2);
+    ctx.fillStyle = C.surface;
+    ctx.fill();
+    ctx.strokeStyle = C.highlight;
+    ctx.lineWidth   = 1.5;
+    ctx.globalAlpha = 0.45;
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+
+    ctx.fillStyle    = C.highlight;
+    ctx.fillText(badgeText, BADGE_X, BADGE_Y);
+  }
+
+  // ── Song title ──
+  const titleY0 = region ? 260 : 200;
+  ctx.textAlign    = 'center';
+  ctx.textBaseline = 'top';
+  ctx.fillStyle    = C.textPri;
+
+  // Word-wrap title
+  const wrapText = (text, maxW, lineH, startY, maxLines) => {
+    const words = text.split(' ');
+    const lines = [];
+    let line = '';
+    for (const word of words) {
+      const test = line ? line + ' ' + word : word;
+      if (ctx.measureText(test).width > maxW && line) {
+        lines.push(line);
+        line = word;
+        if (lines.length >= maxLines) break;
+      } else {
+        line = test;
+      }
+    }
+    if (line && lines.length < maxLines) lines.push(line);
+    const totalH = lines.length * lineH;
+    lines.forEach((l, i) => ctx.fillText(l, W / 2, startY + i * lineH));
+    return startY + totalH;
+  };
+
+  ctx.font = 'bold 72px "Playfair Display", serif';
+  let afterTitle = wrapText(song.song_title || '—', W - 160, 90, titleY0, 3);
+
+  // ── Thin divider ──
+  afterTitle += 42;
+  const divGrad = ctx.createLinearGradient(W*0.2, 0, W*0.8, 0);
+  divGrad.addColorStop(0,   'transparent');
+  divGrad.addColorStop(0.3, C.highlight);
+  divGrad.addColorStop(0.7, C.highlight);
+  divGrad.addColorStop(1,   'transparent');
+  ctx.fillStyle = divGrad;
+  ctx.fillRect(W*0.2, afterTitle, W*0.6, 2);
+  afterTitle += 40;
+
+  // ── Lyric snippet ──
+  const lyrics = fmt(song.lyrics);
+  if (lyrics) {
+    // Take first 2–3 non-empty lines
+    const lines = lyrics.split('\n').map(l => l.trim()).filter(l => l);
+    const snippet = lines.slice(0, 3).join('\n');
+
+    // Opening quotation mark
+    ctx.font         = 'bold 96px "Playfair Display", serif';
+    ctx.fillStyle    = C.accent;
+    ctx.globalAlpha  = 0.6;
+    ctx.textAlign    = 'left';
+    ctx.textBaseline = 'top';
+    ctx.fillText('\u201C', 108, afterTitle - 24);
+    ctx.globalAlpha  = 1;
+
+    ctx.font         = '38px "Lato", sans-serif';
+    ctx.fillStyle    = C.textSec;
+    ctx.textAlign    = 'center';
+    ctx.textBaseline = 'top';
+    afterTitle = wrapText(snippet, W - 220, 58, afterTitle + 12, 4);
+
+    // Closing quotation mark
+    ctx.font         = 'bold 96px "Playfair Display", serif';
+    ctx.fillStyle    = C.accent;
+    ctx.globalAlpha  = 0.6;
+    ctx.textAlign    = 'right';
+    ctx.textBaseline = 'top';
+    ctx.fillText('\u201D', W - 108, afterTitle - 20);
+    ctx.globalAlpha  = 1;
+    afterTitle += 28;
+  }
+
+  // ── Metadata pills (Makam + Usul) ──
+  const pills = [
+    fmt(song.makamsal_dizi),
+    fmt(song.konusu_turu),
+    fmt(song.usul),
+  ].filter(Boolean).slice(0, 3);
+
+  if (pills.length) {
+    afterTitle += 36;
+    ctx.font         = 'bold 24px "Lato", sans-serif';
+    ctx.textAlign    = 'center';
+    ctx.textBaseline = 'middle';
+    const pillH = 42, pillGap = 14;
+    const pillWidths = pills.map(p => ctx.measureText(p.toLocaleUpperCase('tr-TR')).width + 40);
+    const totalPillW = pillWidths.reduce((a, b) => a + b, 0) + pillGap * (pills.length - 1);
+    let px = (W - totalPillW) / 2;
+    pills.forEach((pill, i) => {
+      const pw = pillWidths[i];
+      ctx.beginPath();
+      ctx.roundRect(px, afterTitle, pw, pillH, pillH / 2);
+      ctx.fillStyle   = C.border;
+      ctx.fill();
+      ctx.strokeStyle = C.surface;
+      ctx.lineWidth   = 1;
+      ctx.stroke();
+      ctx.fillStyle = C.textSec;
+      ctx.fillText(pill.toLocaleUpperCase('tr-TR'), px + pw / 2, afterTitle + pillH / 2);
+      px += pw + pillGap;
+    });
+  }
+
+  // ── Bottom rule ──
+  const botRule = ctx.createLinearGradient(0, 0, W, 0);
+  botRule.addColorStop(0,    'transparent');
+  botRule.addColorStop(0.2,  C.highlight);
+  botRule.addColorStop(0.8,  C.accent);
+  botRule.addColorStop(1,    'transparent');
+  ctx.fillStyle = botRule;
+  ctx.fillRect(0, H - 5, W, 5);
+
+  // ── Branding footer ──
+  ctx.font         = 'bold 24px "Lato", sans-serif';
+  ctx.fillStyle    = C.textSec;
+  ctx.globalAlpha  = 0.45;
+  ctx.textAlign    = 'center';
+  ctx.textBaseline = 'bottom';
+  ctx.fillText('turkguncesi.com  •  Türkiye Türkü Haritası', W / 2, H - 28);
+  ctx.globalAlpha  = 1;
+
+  // ── Show overlay ──
+  overlay.removeAttribute('hidden');
+}
+
 /* ── INIT ───────────────────────────────────────────────────────────────────── */
 document.addEventListener('DOMContentLoaded', async () => {
   mapWrapper     = document.getElementById('map-wrapper');
@@ -1009,6 +1258,33 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.querySelector('.song-modal-backdrop') && document.getElementById('song-modal')
     .querySelector('.song-modal-backdrop')
     .addEventListener('click', closeSongModal);
+
+  // ── SHARE BUTTON WIRING ──────────────────────────────────────────────────────
+  document.getElementById('modal-share-btn')?.addEventListener('click', () => {
+    const idx = currentModalSongIdx;
+    if (idx < 0) return;
+    generateShareCard(allSongs[idx]);
+  });
+  document.getElementById('share-close-btn')?.addEventListener('click', () => {
+    document.getElementById('share-preview-overlay').setAttribute('hidden', '');
+  });
+  document.getElementById('share-download-btn')?.addEventListener('click', () => {
+    const canvas = document.getElementById('share-canvas');
+    const song   = allSongs[currentModalSongIdx];
+    const name   = (song?.song_title || 'turku').slice(0, 40).replace(/[^a-zA-ZğşıöüçĞŞİÖÜÇ0-9 ]/g, '').trim().replace(/ +/g, '-');
+    const a = document.createElement('a');
+    a.download = `turku-${name}.png`;
+    a.href = canvas.toDataURL('image/png');
+    a.click();
+  });
+  document.getElementById('share-native-btn')?.addEventListener('click', async () => {
+    const canvas = document.getElementById('share-canvas');
+    try {
+      const blob = await new Promise(res => canvas.toBlob(res, 'image/png'));
+      const file = new File([blob], 'turku.png', { type: 'image/png' });
+      await navigator.share({ files: [file], title: allSongs[currentModalSongIdx]?.song_title || 'Türkü' });
+    } catch (e) { /* cancelled or unsupported */ }
+  });
 
   // Zoom buttons
   document.getElementById('btn-zoom-in').addEventListener('click', () => {

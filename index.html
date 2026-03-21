@@ -572,9 +572,26 @@
 
       <div class="song-modal-footer">
         <span class="modal-rep-no" id="modal-rep-no"></span>
-        <a class="modal-source-link" id="modal-source-link" href="#" target="_blank" rel="noopener noreferrer">
-          Repertükül'de Gör ↗
-        </a>
+        <div class="modal-footer-actions">
+          <button class="modal-share-btn" id="modal-share-btn" title="Paylaşım kartı oluştur">
+            <span class="share-btn-icon">↑</span> Paylaş
+          </button>
+          <a class="modal-source-link" id="modal-source-link" href="#" target="_blank" rel="noopener noreferrer">
+            Repertükül'de Gör ↗
+          </a>
+        </div>
+      </div>
+
+      <!-- Share preview overlay (inside the sheet) -->
+      <div class="share-preview-overlay" id="share-preview-overlay" hidden>
+        <div class="share-preview-inner">
+          <canvas id="share-canvas" width="1080" height="1080"></canvas>
+          <div class="share-preview-actions">
+            <button class="share-download-btn" id="share-download-btn">⬇ İndir (PNG)</button>
+            <button class="share-native-btn" id="share-native-btn">↑ Paylaş</button>
+            <button class="share-close-btn" id="share-close-btn">✕ Kapat</button>
+          </div>
+        </div>
       </div>
     </div>
   </div>
