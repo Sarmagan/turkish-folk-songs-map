@@ -735,6 +735,52 @@ function showRandomSongFromList(navList) {
   openSongModal(randomIdx, true, navList);
 }
 
+/* ── GÜNÜN TÜRKÜSÜ ───────────────────────────────────────────────────────────
+   Deterministically picks one song per calendar day by hashing today's date
+   string into a stable index. Same date always shows the same song.
+   ─────────────────────────────────────────────────────────────────────────── */
+function getDailyIndex(total) {
+  const now  = new Date();
+  // Zero-padded date string, e.g. "20250321" — changes once per day
+  const dateStr = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}`;
+  // Simple but stable hash: sum of (charCode * position)
+  let hash = 0;
+  for (let i = 0; i < dateStr.length; i++) {
+    hash = (hash * 31 + dateStr.charCodeAt(i)) >>> 0; // keep it 32-bit unsigned
+  }
+  return hash % total;
+}
+
+function renderTotd() {
+  const container = document.getElementById('totd-container');
+  if (!container || allSongs.length === 0) return;
+
+  const idx  = getDailyIndex(allSongs.length);
+  const song = allSongs[idx];
+  if (!song) return;
+
+  const region   = fmt(song.yoresi_ili) ? toTitleCase(song.yoresi_ili.trim()) : null;
+  const makam    = fmt(song.makamsal_dizi);
+  const konu     = fmt(song.konusu_turu);
+
+  const metaParts = [region, makam, konu].filter(Boolean);
+
+  container.innerHTML = `
+    <div class="totd-card" id="totd-card" role="button" tabindex="0"
+         title="Günün türküsünü aç"
+         onclick="openSongModal(${idx})"
+         onkeydown="if(event.key==='Enter'||event.key===' ')openSongModal(${idx})">
+      <div class="totd-label">
+        <span class="totd-star">☀</span>
+        <span>Günün Türküsü</span>
+      </div>
+      <div class="totd-title">♩ ${escapeHtml(song.song_title || '—')}</div>
+      ${metaParts.length ? `<div class="totd-meta">${metaParts.map(p => `<span>${escapeHtml(p)}</span>`).join('<span class="totd-sep">·</span>')}</div>` : ''}
+      <div class="totd-cta">Detayları gör ↗</div>
+    </div>
+  `;
+}
+
 /* ── TOOLTIP ────────────────────────────────────────────────────────────────── */
 function showTooltip(svgName, cx, cy) {
   const displayName = resolveName(svgName);
@@ -1628,6 +1674,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     const btn = regionContainer?.querySelector(`[data-region="${regionName}"]`);
     if (btn) btn.style.display = count > 0 ? 'inline-flex' : 'none';
   });
+
+  // ── GÜNÜN TÜRKÜSÜ ────────────────────────────────────────────────────────────
+  renderTotd();
 
   applyTransform();
   wireProvinces();

@@ -2242,3 +2242,168 @@ body:not(.choropleth-on) #legend-choropleth-wrap {
 .btn-random-province:active {
   transform: scale(0.95);
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   GÜNÜN TÜRKÜSÜ CARD — floating overlay bottom-left of map
+   ═══════════════════════════════════════════════════════════════ */
+
+#totd-container {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  z-index: 15;
+  max-width: 220px;
+  pointer-events: auto;
+}
+
+/* Hide on mobile — drawer takes the whole bottom */
+@media (max-width: 700px) {
+  #totd-container { display: none; }
+}
+
+.totd-card {
+  padding: 11px 14px 10px;
+  border-radius: var(--radius);
+  border: 1px solid var(--card-border);
+  background: var(--panel-bg);
+  box-shadow: var(--shadow);
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  transition: border-color var(--transition), box-shadow var(--transition),
+              transform var(--transition);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+/* Subtle left accent stripe */
+.totd-card::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 3px;
+  background: linear-gradient(to bottom, var(--highlight), var(--accent));
+  border-radius: 3px 0 0 3px;
+}
+
+.totd-card:hover {
+  border-color: var(--card-border-hover);
+  box-shadow: 0 6px 24px rgba(0,0,0,0.3);
+  transform: translateY(-2px);
+}
+
+.totd-card:active { transform: scale(0.99); }
+
+.totd-label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--highlight);
+  margin-bottom: 6px;
+  opacity: 0.85;
+}
+
+.totd-star {
+  font-size: 0.7rem;
+  line-height: 1;
+  animation: totd-spin 12s linear infinite;
+}
+
+@keyframes totd-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+.totd-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 0.88rem;
+  color: var(--text-primary);
+  line-height: 1.35;
+  margin-bottom: 5px;
+  padding-right: 2px;
+}
+
+.totd-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 3px;
+  font-size: 0.65rem;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+
+.totd-sep {
+  opacity: 0.4;
+  font-size: 0.55rem;
+}
+
+.totd-cta {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--highlight);
+  opacity: 0;
+  transition: opacity var(--transition);
+  text-transform: uppercase;
+}
+
+.totd-card:hover .totd-cta,
+.totd-card:focus-visible .totd-cta {
+  opacity: 1;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   SUGGEST A SONG LINK — floating overlay bottom-right of map
+   ═══════════════════════════════════════════════════════════════ */
+
+#suggest-link {
+  position: absolute;
+  bottom: 175px;
+  right: 14px;
+  z-index: 15;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+  text-decoration: none;
+  padding: 6px 12px;
+  border-radius: 20px;
+  border: 1px solid var(--surface);
+  background: var(--panel-bg);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  transition: color var(--transition), border-color var(--transition),
+              background var(--transition), transform var(--transition);
+  white-space: nowrap;
+}
+
+#suggest-link:hover {
+  color: var(--highlight);
+  border-color: var(--highlight);
+  background: var(--panel-bg);
+  transform: translateY(-1px);
+}
+
+/* On mobile push it above the drawer toggle button */
+@media (max-width: 700px) {
+  #suggest-link {
+    bottom: 68px;
+    right: 12px;
+    font-size: 0.62rem;
+    padding: 5px 10px;
+  }
+}
+
+.suggest-icon {
+  font-size: 0.8rem;
+  line-height: 1;
+}
