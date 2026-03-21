@@ -154,18 +154,83 @@ const PROVINCE_COORDS = {
   "Çanakkale":[100.3,147.9],"Çankiri":[422.0,108.9],"Çorum":[471.6,120.2],
 };
 
+/* ── PROVINCE LABEL DISPLAY NAMES ───────────────────────────────────────────── */
+// Maps PROVINCE_COORDS keys → the label text to render on the map.
+// Shorter/abbreviated forms for provinces whose full name won't fit.
+const LABEL_TEXT = {
+  "Afyonkarahisar": "Afyon",
+  "K. Maras":       "K.Maraş",
+  "Sanliurfa":      "Ş.Urfa",
+  "Diyarbakir":     "Diyarbakır",
+  "Kinkkale":       "Kırıkkale",
+  "Kirklareli":     "Kırklareli",
+  "Kirsehir":       "Kırşehir",
+  "Gümüshane":      "Gümüşhane",
+  "Kastamonu":      "Kastamonu",
+  "Kahramanmaraş":  "K.Maraş",
+};
+
+/* ── LABEL FUNCTIONS ────────────────────────────────────────────────────────── */
+
+// The SVG viewBox is 1000×422. At scale=1 the SVG renders at ~960px wide,
+// so 1 SVG unit ≈ 0.96 CSS px. We target ~11px rendered text at scale=1,
+// which means fontSize = 11 / scale (counter-scaled).
+// Clamped so labels don't get absurdly huge when zoomed far out.
+const LABEL_BASE_PX = 11;   // desired rendered size in CSS pixels at scale=1
+const SVG_UNIT_PX   = 960 / 1000; // approx CSS-px per SVG viewBox unit at scale=1
+
+function buildProvinceLabels() {
+  const svg = mapContainer.querySelector('svg');
+  labelGroup = svg.getElementById('province-labels');
+  if (!labelGroup) return;
+
+  // Clear any previously built labels
+  labelGroup.innerHTML = '';
+
+  const ns = 'http://www.w3.org/2000/svg';
+
+  Object.entries(PROVINCE_COORDS).forEach(([svgName, [cx, cy]]) => {
+    const label = LABEL_TEXT[svgName] || svgName;
+
+    const text = document.createElementNS(ns, 'text');
+    text.setAttribute('x', cx);
+    text.setAttribute('y', cy);
+    text.setAttribute('data-name', svgName);
+    text.textContent = label;
+
+    labelGroup.appendChild(text);
+  });
+
+  updateLabelScale();
+}
+
+function updateLabelScale() {
+  if (!labelGroup) return;
+  // fontSize in SVG units so that rendered size ≈ LABEL_BASE_PX at any zoom
+  const svgFontSize = (LABEL_BASE_PX / SVG_UNIT_PX) / scale;
+  // stroke-width also counter-scales for the outline effect
+  const svgStrokeW  = (2.5 / SVG_UNIT_PX) / scale;
+
+  labelGroup.querySelectorAll('text').forEach(t => {
+    t.setAttribute('font-size', svgFontSize);
+    t.setAttribute('stroke-width', svgStrokeW);
+  });
+}
+
 /* ── STATE ──────────────────────────────────────────────────────────────────── */
 let songsByProvince = {};
 let allSongs        = [];
 let scale = 1, translateX = 0, translateY = 0;
 let activePanel  = null;
 let drawerOpen   = false;
+let labelsVisible = false;
 const MIN_SCALE  = 0.5, MAX_SCALE = 8, ZOOM_STEP = 0.25;
 
 /* ── DOM REFS (set inside DOMContentLoaded) ─────────────────────────────────── */
 let mapWrapper, mapContainer, tooltip, scaleBadge,
     selectedInfo, digerBtn, searchInput, searchClear,
-    drawerToggle, drawerBackdrop, sidePanel;
+    drawerToggle, drawerBackdrop, sidePanel,
+    labelToggle, labelGroup;
 
 /* ── HELPERS ────────────────────────────────────────────────────────────────── */
 function toTitleCase(str) {
@@ -413,6 +478,7 @@ function applyTransform(animated) {
     mapContainer.style.transform  = `translate(${translateX}px,${translateY}px) scale(${scale})`;
   }
   scaleBadge.textContent = `${Math.round(scale * 100)}%`;
+  updateLabelScale();
 }
 
 function zoomAt(cx, cy, ns) {
@@ -705,6 +771,17 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   applyTransform();
   wireProvinces();
+  buildProvinceLabels();
+
+  // Label toggle
+  labelToggle = document.getElementById('toggle-labels');
+  labelGroup  = mapContainer.querySelector('#province-labels');
+  if (labelToggle && labelGroup) {
+    labelToggle.addEventListener('change', () => {
+      labelsVisible = labelToggle.checked;
+      labelGroup.classList.toggle('visible', labelsVisible);
+    });
+  }
 
   // Keyboard navigation — registered after wireProvinces so provincePaths is populated
   window.addEventListener('keydown', e => {
