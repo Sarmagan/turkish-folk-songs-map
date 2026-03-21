@@ -326,7 +326,7 @@ function buildSongCard(song, highlightQuery, highlightScopes) {
 
 let modalCloseTimer = null;
 
-function openSongModal(idx) {
+function openSongModal(idx, updateUrl = true) {
   const song = allSongs[idx];
   if (!song) return;
 
@@ -444,9 +444,15 @@ function openSongModal(idx) {
   // Scroll body back to top
   const body = modal.querySelector('.song-modal-body');
   if (body) body.scrollTop = 0;
+
+  // Update URL hash
+  if (updateUrl) {
+    const rep = fmt(song.repertuar_no);
+    setHash(rep ? `song-${rep}` : `song-idx-${idx}`);
+  }
 }
 
-function closeSongModal() {
+function closeSongModal(updateUrl = true) {
   const modal = document.getElementById('song-modal');
   if (!modal || modal.hidden) return;
   modal.classList.add('closing');
@@ -455,6 +461,14 @@ function closeSongModal() {
     modal.setAttribute('hidden', '');
     modal.classList.remove('closing');
     document.body.style.overflow = '';
+    // Restore province hash if one is active, else clear
+    if (updateUrl) {
+      if (activePanel) {
+        setHash(slugify(resolveName(activePanel.getAttribute('name'))));
+      } else {
+        setHash('');
+      }
+    }
   }, 200);
 }
 
@@ -861,8 +875,76 @@ function wireProvinces() {
   });
 }
 
+/* ── URL HASH / DEEP LINKING ─────────────────────────────────────────────────
+   Supported formats:
+     #konya              → select province (ASCII-normalised, case-insensitive)
+     #song-1234          → open song modal by repertuar_no
+     #song-idx-42        → open song modal by allSongs index (fallback)
+   ─────────────────────────────────────────────────────────────────────────── */
+
+function slugify(str) {
+  return str
+    .toLocaleLowerCase('tr-TR')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')   // strip diacritics
+    .replace(/ı/g, 'i').replace(/ğ/g, 'g')
+    .replace(/ş/g, 's').replace(/ç/g, 'c')
+    .replace(/ö/g, 'o').replace(/ü/g, 'u')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+function setHash(hash) {
+  // replaceState so we don't flood the browser history
+  history.replaceState(null, '', hash ? '#' + hash : location.pathname + location.search);
+}
+
+function resolveHashToProvincePath(slug) {
+  // Try to find a province path whose slugified name matches
+  const svg = mapContainer?.querySelector('svg');
+  if (!svg) return null;
+  for (const path of svg.querySelectorAll('path[name]')) {
+    const resolved = resolveName(path.getAttribute('name'));
+    if (slugify(resolved) === slug) return path;
+  }
+  return null;
+}
+
+function resolveHashToSongIndex(hash) {
+  // #song-<repertuar_no>  or  #song-idx-<n>
+  const idxMatch = hash.match(/^song-idx-(\d+)$/);
+  if (idxMatch) {
+    const n = parseInt(idxMatch[1], 10);
+    return n >= 0 && n < allSongs.length ? n : -1;
+  }
+  const repMatch = hash.match(/^song-(.+)$/);
+  if (repMatch) {
+    const rep = repMatch[1];
+    return allSongs.findIndex(s => String(s.repertuar_no) === rep);
+  }
+  return -1;
+}
+
+function applyHash(hash, pushHistory) {
+  if (!hash) return false;
+  hash = hash.replace(/^#/, '');
+
+  if (hash.startsWith('song-')) {
+    const idx = resolveHashToSongIndex(hash);
+    if (idx >= 0) { openSongModal(idx, false); return true; }
+    return false;
+  }
+
+  // Province
+  const path = resolveHashToProvincePath(hash);
+  if (path) {
+    selectProvince(path, path.getAttribute('name'), false);
+    return true;
+  }
+  return false;
+}
+
 /* ── SELECT PROVINCE (shared by click + keyboard Enter) ─────────────────────── */
-function selectProvince(path, svgName) {
+function selectProvince(path, svgName, updateUrl = true) {
   // Clear classes and blur all paths reliably
   provincePaths.forEach(p => {
     p.classList.remove('active-province', 'kb-focus');
@@ -881,6 +963,8 @@ function selectProvince(path, svgName) {
   const songs = getSongsFor(svgName);
   updateSidePanel(resolveName(svgName), songs);
   if (window.innerWidth <= 700) openDrawer();
+
+  if (updateUrl) setHash(slugify(resolveName(svgName)));
 }
 
 /* ── INIT ───────────────────────────────────────────────────────────────────── */
@@ -1102,6 +1186,26 @@ document.addEventListener('DOMContentLoaded', async () => {
   wireProvinces();
   buildProvinceLabels();
   if (labelGroup) labelGroup.classList.add('visible');
+
+  // ── DEEP LINK RESTORE ───────────────────────────────────────────────────────
+  // Run after data + SVG paths are fully wired so province paths exist
+  if (location.hash) applyHash(location.hash);
+
+  // Back / forward button support
+  window.addEventListener('hashchange', () => {
+    const hash = location.hash.replace(/^#/, '');
+    if (!hash) {
+      // Hash cleared (e.g. user navigated back to bare URL)
+      closeSongModal(false);
+      if (activePanel) {
+        activePanel.classList.remove('active-province');
+        activePanel = null;
+        selectedInfo.innerHTML = '<p class="empty-msg">Bir ilin üzerine gelin ve tıklayın…</p>';
+      }
+      return;
+    }
+    applyHash(location.hash);
+  });
 
   // Label toggle
   labelToggle = document.getElementById('toggle-labels');
