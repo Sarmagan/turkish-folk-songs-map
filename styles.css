@@ -1164,8 +1164,8 @@ body:not(.choropleth-on) #legend-choropleth-wrap {
     left: 0;
     right: 0;
     width: 100%;
-    height: 75vh;
-    max-height: 75vh;
+    height: 85vh;
+    max-height: 85vh;
     border-left: none;
     border-top: 2px solid var(--surface);
     border-radius: 16px 16px 0 0;
@@ -1174,6 +1174,32 @@ body:not(.choropleth-on) #legend-choropleth-wrap {
     transition: transform 0.35s cubic-bezier(.4,0,.2,1);
     box-shadow: 0 -8px 40px rgba(0,0,0,0.5);
   }
+
+  /* Reduce padding to save space */
+  .panel-top { padding: 12px 14px 8px; }
+  #search-row { padding: 8px 12px 6px; }
+
+  /* Hide legends on mobile */
+  #legend-choropleth-wrap,
+  #side-panel .legend-item { display: none; }
+
+  /* Make extra region buttons scroll horizontally */
+  #extra-regions {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 6px;
+    -webkit-overflow-scrolling: touch;
+  }
+  #extra-regions::-webkit-scrollbar { display: none; }
+
+  /* Make search scope chips scroll horizontally */
+  #search-scope {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 8px;
+    -webkit-overflow-scrolling: touch;
+  }
+  #search-scope::-webkit-scrollbar { display: none; }
 
   #side-panel.drawer-open {
     transform: translateY(0);
@@ -1776,6 +1802,16 @@ body:not(.choropleth-on) #legend-choropleth-wrap {
   max-width: 400px;
 }
 
+.share-preview-label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  opacity: 0.7;
+  text-align: center;
+}
+
 /* Canvas preview — scaled down to fit the overlay */
 #share-canvas {
   width: 100%;
@@ -1838,6 +1874,15 @@ body:not(.choropleth-on) #legend-choropleth-wrap {
   transition: color var(--transition), border-color var(--transition);
 }
 .share-close-btn:hover { color: var(--text-primary); border-color: var(--highlight); }
+
+.share-preview-hint {
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  opacity: 0.55;
+  text-align: center;
+  max-width: 300px;
+  line-height: 1.5;
+}
 
 /* ── MOBILE ── */
 @media (max-width: 700px) {

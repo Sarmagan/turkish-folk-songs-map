@@ -973,19 +973,31 @@ function selectProvince(path, svgName, updateUrl = true) {
 }
 
 /* ── SHARE CARD GENERATOR ────────────────────────────────────────────────────
-   Draws a 1080×1080 canvas card and shows the preview overlay.
-   Always uses the dark-navy palette so cards look consistent regardless
-   of the user's current theme choice.
+   On mobile (Web Share API available): draws card then immediately fires
+   the OS share sheet — user picks Instagram, WhatsApp, Twitter, etc.
+   On desktop: shows an inline preview with a prominent download button.
    ─────────────────────────────────────────────────────────────────────────── */
+
+async function triggerNativeShare() {
+  const canvas = document.getElementById('share-canvas');
+  const song   = allSongs[currentModalSongIdx];
+  try {
+    const blob = await new Promise(res => canvas.toBlob(res, 'image/png'));
+    const file = new File([blob], 'turku.png', { type: 'image/png' });
+    const shareData = { files: [file], title: song?.song_title || 'Türkü' };
+    if (navigator.canShare && navigator.canShare(shareData)) {
+      await navigator.share(shareData);
+      return true;
+    }
+  } catch (e) {
+    if (e.name !== 'AbortError') console.warn('Share failed:', e);
+  }
+  return false;
+}
+
 function generateShareCard(song) {
   const canvas  = document.getElementById('share-canvas');
   const overlay = document.getElementById('share-preview-overlay');
-  const nativeBtn = document.getElementById('share-native-btn');
-
-  // Show/hide native share button based on API availability
-  if (nativeBtn) {
-    nativeBtn.classList.toggle('hidden', !navigator.canShare);
-  }
 
   const W = 1080, H = 1080;
   canvas.width  = W;
@@ -1074,7 +1086,6 @@ function generateShareCard(song) {
     const bx = BADGE_X - badgeW / 2;
     const by = BADGE_Y - badgeH / 2;
 
-    // pill background
     ctx.beginPath();
     ctx.roundRect(bx, by, badgeW, badgeH, badgeH / 2);
     ctx.fillStyle = C.surface;
@@ -1095,7 +1106,6 @@ function generateShareCard(song) {
   ctx.textBaseline = 'top';
   ctx.fillStyle    = C.textPri;
 
-  // Word-wrap title
   const wrapText = (text, maxW, lineH, startY, maxLines) => {
     const words = text.split(' ');
     const lines = [];
@@ -1133,11 +1143,9 @@ function generateShareCard(song) {
   // ── Lyric snippet ──
   const lyrics = fmt(song.lyrics);
   if (lyrics) {
-    // Take first 2–3 non-empty lines
     const lines = lyrics.split('\n').map(l => l.trim()).filter(l => l);
     const snippet = lines.slice(0, 3).join('\n');
 
-    // Opening quotation mark
     ctx.font         = 'bold 96px "Playfair Display", serif';
     ctx.fillStyle    = C.accent;
     ctx.globalAlpha  = 0.6;
@@ -1152,7 +1160,6 @@ function generateShareCard(song) {
     ctx.textBaseline = 'top';
     afterTitle = wrapText(snippet, W - 220, 58, afterTitle + 12, 4);
 
-    // Closing quotation mark
     ctx.font         = 'bold 96px "Playfair Display", serif';
     ctx.fillStyle    = C.accent;
     ctx.globalAlpha  = 0.6;
@@ -1163,7 +1170,7 @@ function generateShareCard(song) {
     afterTitle += 28;
   }
 
-  // ── Metadata pills (Makam + Usul) ──
+  // ── Metadata pills ──
   const pills = [
     fmt(song.makamsal_dizi),
     fmt(song.konusu_turu),
@@ -1212,11 +1219,24 @@ function generateShareCard(song) {
   ctx.fillText('turkguncesi.com  •  Türkiye Türkü Haritası', W / 2, H - 28);
   ctx.globalAlpha  = 1;
 
-  // ── Show overlay ──
-  overlay.removeAttribute('hidden');
+  // ── Decide: native share or preview overlay ──
+  // On mobile/touch devices with Web Share API → fire the OS share sheet directly.
+  // On desktop → show the preview overlay with download option.
+  const canNativeShare = navigator.canShare &&
+    (() => { try { return navigator.canShare({ files: [new File([], 't.png', { type: 'image/png' })] }); } catch(e) { return false; } })();
+
+  if (canNativeShare) {
+    triggerNativeShare();   // card is already drawn on the canvas
+  } else {
+    // Desktop: show preview + download
+    // Update overlay button visibility
+    const nativeBtn = document.getElementById('share-native-btn');
+    if (nativeBtn) nativeBtn.classList.add('hidden');
+    overlay.removeAttribute('hidden');
+  }
 }
 
-/* ── INIT ───────────────────────────────────────────────────────────────────── */
+/* ── MAIN INIT ───────────────────────────────────────────────────────────────── */
 document.addEventListener('DOMContentLoaded', async () => {
   mapWrapper     = document.getElementById('map-wrapper');
   mapContainer   = document.getElementById('map-container');
@@ -1277,14 +1297,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     a.href = canvas.toDataURL('image/png');
     a.click();
   });
-  document.getElementById('share-native-btn')?.addEventListener('click', async () => {
-    const canvas = document.getElementById('share-canvas');
-    try {
-      const blob = await new Promise(res => canvas.toBlob(res, 'image/png'));
-      const file = new File([blob], 'turku.png', { type: 'image/png' });
-      await navigator.share({ files: [file], title: allSongs[currentModalSongIdx]?.song_title || 'Türkü' });
-    } catch (e) { /* cancelled or unsupported */ }
-  });
+  document.getElementById('share-native-btn')?.addEventListener('click', triggerNativeShare);
 
   // Zoom buttons
   document.getElementById('btn-zoom-in').addEventListener('click', () => {
