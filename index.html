@@ -27,6 +27,13 @@
         </span>
         <span class="label-toggle-text">İl İsimleri</span>
       </label>
+      <label class="label-toggle" id="choropleth-toggle-wrap" title="Türkü yoğunluğunu renkle göster">
+        <input type="checkbox" id="toggle-choropleth" autocomplete="off" />
+        <span class="label-toggle-track">
+          <span class="label-toggle-thumb"></span>
+        </span>
+        <span class="label-toggle-text">Yoğunluk</span>
+      </label>
     </div>
   </header>
 
@@ -413,15 +420,26 @@
 
         <p class="panel-stats">Toplam: <strong id="total-count">—</strong> türkü</p>
 
-        <div class="legend-item">
-          <div class="legend-swatch" style="background:#2e6b96;"></div>
-          <span>Türkü verisi var</span>
+        <div id="legend-choropleth-wrap">
+          <div class="legend-choropleth">
+            <div class="legend-gradient">
+              <div class="legend-gradient-bar"></div>
+              <div class="legend-gradient-labels">
+                <span>1</span>
+                <span>5</span>
+                <span>15</span>
+                <span>30</span>
+                <span>100+</span>
+              </div>
+            </div>
+            <div class="legend-gradient-title">Türkü sayısı</div>
+          </div>
         </div>
-        <div class="legend-item">
+        <div class="legend-item legend-item--sm">
           <div class="legend-swatch" style="background:#4a7c9e;"></div>
           <span>Henüz eklenmedi</span>
         </div>
-        <div class="legend-item">
+        <div class="legend-item legend-item--sm">
           <div class="legend-swatch" style="background:#e94560;"></div>
           <span>Seçili il</span>
         </div>

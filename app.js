@@ -208,14 +208,15 @@ let allSongs        = [];
 let scale = 1, translateX = 0, translateY = 0;
 let activePanel  = null;
 let drawerOpen   = false;
-let labelsVisible = true;
+let labelsVisible     = true;
+let choroplethVisible = false;
 const MIN_SCALE  = 0.5, MAX_SCALE = 8, ZOOM_STEP = 0.25;
 
 /* ── DOM REFS (set inside DOMContentLoaded) ─────────────────────────────────── */
 let mapWrapper, mapContainer, tooltip, scaleBadge,
     selectedInfo, digerBtn, searchInput, searchClear,
     drawerToggle, drawerBackdrop, sidePanel,
-    labelToggle, labelGroup;
+    labelToggle, labelGroup, choroplethToggle;
 
 /* ── HELPERS ────────────────────────────────────────────────────────────────── */
 function toTitleCase(str) {
@@ -574,6 +575,17 @@ function findNeighbor(fromIndex, arrowKey) {
   return bestIndex;
 }
 
+/* ── CHOROPLETH TIER ────────────────────────────────────────────────────────── */
+// Maps a song count to a tier 1-5 for CSS fill colouring.
+// Thresholds: 1-4 | 5-14 | 15-29 | 30-99 | 100+
+function songCountToTier(n) {
+  if (n >= 100) return 5;
+  if (n >= 30)  return 4;
+  if (n >= 15)  return 3;
+  if (n >= 5)   return 2;
+  return 1;
+}
+
 /* ── PROVINCE WIRING ────────────────────────────────────────────────────────── */
 function wireProvinces() {
   const svg = mapContainer.querySelector('svg');
@@ -582,7 +594,11 @@ function wireProvinces() {
 
   provincePaths.forEach((path, idx) => {
     const svgName = path.getAttribute('name');
-    if (getSongsFor(svgName)?.length) path.classList.add('has-data');
+    const count   = getSongsFor(svgName)?.length ?? 0;
+    if (count > 0) {
+      path.classList.add('has-data');           // keep for tooltip / JS checks
+      path.setAttribute('data-tier', songCountToTier(count));
+    }
 
     // Make focusable for keyboard nav
     path.setAttribute('tabindex', '-1');
@@ -766,6 +782,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     labelToggle.addEventListener('change', () => {
       labelsVisible = labelToggle.checked;
       labelGroup.classList.toggle('visible', labelsVisible);
+    });
+  }
+
+  // Choropleth toggle
+  choroplethToggle = document.getElementById('toggle-choropleth');
+  if (choroplethToggle) {
+    choroplethToggle.addEventListener('change', () => {
+      choroplethVisible = choroplethToggle.checked;
+      document.body.classList.toggle('choropleth-on', choroplethVisible);
     });
   }
 

@@ -23,6 +23,12 @@
   --shadow:       0 8px 32px rgba(0,0,0,0.5);
   --radius:       10px;
   --transition:   0.22s cubic-bezier(.4,0,.2,1);
+  /* Choropleth tier colours (1 = fewest, 5 = most) */
+  --tier1: #2e6b96;
+  --tier2: #1f7aaa;
+  --tier3: #0f87b8;
+  --tier4: #0090b8;
+  --tier5: #009ab0;
 }
 
 body {
@@ -173,13 +179,20 @@ header p {
   filter: brightness(1.15) drop-shadow(0 0 6px rgba(245,166,35,0.55));
 }
 
-#map-container svg path.has-data {
-  fill: #2e6b96;
-}
+/* ── CHOROPLETH TIERS — only active when body.choropleth-on ── */
+body.choropleth-on #map-container svg path[data-tier="1"]:not(.active-province):not(.kb-focus) { fill: var(--tier1); }
+body.choropleth-on #map-container svg path[data-tier="2"]:not(.active-province):not(.kb-focus) { fill: var(--tier2); }
+body.choropleth-on #map-container svg path[data-tier="3"]:not(.active-province):not(.kb-focus) { fill: var(--tier3); }
+body.choropleth-on #map-container svg path[data-tier="4"]:not(.active-province):not(.kb-focus) { fill: var(--tier4); }
+body.choropleth-on #map-container svg path[data-tier="5"]:not(.active-province):not(.kb-focus) { fill: var(--tier5); }
 
-#map-container svg path.has-data:hover,
-#map-container svg path.has-data.hovered,
-#map-container svg path.has-data:focus {
+/* Flat fill when choropleth is off */
+#map-container svg path.has-data { fill: #2e6b96; }
+
+/* Hover / focus on any data province */
+#map-container svg path[data-tier]:not(.active-province):hover,
+#map-container svg path[data-tier]:not(.active-province).hovered,
+#map-container svg path[data-tier]:not(.active-province):focus {
   fill: var(--accent);
   filter: brightness(1.2) drop-shadow(0 0 8px rgba(233,69,96,0.65));
 }
@@ -308,11 +321,62 @@ header p {
   color: var(--text-secondary);
 }
 
+.legend-item--sm {
+  margin-bottom: 5px;
+}
+
 .legend-swatch {
   width: 14px;
   height: 14px;
   border-radius: 3px;
   flex-shrink: 0;
+}
+
+/* ── CHOROPLETH GRADIENT LEGEND ── */
+.legend-choropleth {
+  margin-bottom: 10px;
+}
+
+#legend-choropleth-wrap {
+  transition: opacity var(--transition);
+}
+
+body:not(.choropleth-on) #legend-choropleth-wrap {
+  display: none;
+}
+
+.legend-gradient {
+  margin-bottom: 4px;
+}
+
+.legend-gradient-bar {
+  height: 10px;
+  border-radius: 4px;
+  background: linear-gradient(
+    to right,
+    var(--tier1),
+    var(--tier2),
+    var(--tier3),
+    var(--tier4),
+    var(--tier5)
+  );
+  margin-bottom: 3px;
+}
+
+.legend-gradient-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.66rem;
+  color: var(--text-secondary);
+  opacity: 0.8;
+}
+
+.legend-gradient-title {
+  font-size: 0.68rem;
+  color: var(--text-secondary);
+  opacity: 0.7;
+  text-align: right;
+  letter-spacing: 0.04em;
 }
 
 .panel-action-btns {
@@ -728,7 +792,7 @@ header p {
   filter: brightness(1.15) drop-shadow(0 0 6px rgba(245,166,35,0.55));
 }
 
-#map-container svg path.has-data.kb-focus {
+#map-container svg path[data-tier].kb-focus {
   fill: var(--highlight);
   filter: brightness(1.15) drop-shadow(0 0 6px rgba(245,166,35,0.55));
 }
