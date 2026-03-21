@@ -278,7 +278,13 @@ function getSongsFor(svgName) {
 }
 
 /* ── SONG CARD ──────────────────────────────────────────────────────────────── */
-function buildSongCard(song, highlightQuery) {
+function buildSongCard(song, highlightQuery, highlightScopes) {
+  const hl = (text, field) => {
+    if (!highlightQuery || !text) return escapeHtml(text || '');
+    if (highlightScopes && !highlightScopes.includes(field)) return escapeHtml(text);
+    return highlightText(text, highlightQuery);
+  };
+
   const rows = [
     ['İlçe / Köy',    fmt(song.ilcesi_koyu)],
     ['Makam',         fmt(song.makamsal_dizi)],
@@ -293,16 +299,32 @@ function buildSongCard(song, highlightQuery) {
     ['Repertuar No',  fmt(song.repertuar_no)],
   ].filter(([, v]) => v);
 
-  const metaHTML = rows.map(([label, val]) =>
-    `<div class="song-meta-row">
-       <span class="meta-label">${label}</span>
-       <span class="meta-val">${val}</span>
-     </div>`
-  ).join('');
+  const fieldMap = {
+    'İlçe / Köy':    null,
+    'Makam':         null,
+    'Konu / Tür':    null,
+    'Usul':          null,
+    'Karar Sesi':    null,
+    'Ses Genişliği': null,
+    'Kaynak Kişi':   'kaynak_kisi',
+    'Derleyen':      'derleyen',
+    'Notaya Alan':   null,
+    'İcra Eden':     'icra_eden',
+    'Repertuar No':  null,
+  };
 
-  const title = highlightQuery
-    ? highlightText(song.song_title, highlightQuery)
-    : escapeHtml(song.song_title);
+  const metaHTML = rows.map(([label, val]) => {
+    const field = fieldMap[label];
+    const displayVal = (field && highlightQuery && highlightScopes?.includes(field))
+      ? highlightText(val, highlightQuery)
+      : escapeHtml(val);
+    return `<div class="song-meta-row">
+       <span class="meta-label">${label}</span>
+       <span class="meta-val">${displayVal}</span>
+     </div>`;
+  }).join('');
+
+  const title = hl(song.song_title, 'song_title');
 
   const lyricsHTML = fmt(song.lyrics)
     ? `<button class="song-lyrics-toggle" onclick="this.nextElementSibling.classList.toggle('open');this.classList.toggle('open')">Sözleri Göster</button>
@@ -336,9 +358,17 @@ function updateSidePanel(displayName, songs) {
   if (lbl) lbl.textContent = count > 0 ? `♩ ${displayName} (${count})` : `♩ ${displayName}`;
 }
 
+function resetSearchAndFilters() {
+  if (searchInput) { searchInput.value = ''; searchClear?.classList.remove('visible'); }
+  activeFilters.makam = ''; activeFilters.konu = ''; activeFilters.usul = '';
+  ['filter-makam','filter-konu','filter-usul'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  updateFilterDot();
+}
+
 function showDigerPanel() {
   const songs = songsByProvince['Diğer'] || [];
   if (activePanel) { activePanel.classList.remove('active-province'); activePanel = null; }
+  resetSearchAndFilters();
   digerBtn.classList.add('active');
   let html = `<div class="panel-province-header">
     <h3>Diğer Yöreler</h3>
@@ -356,6 +386,7 @@ function showDigerPanel() {
 function showRegionPanel(regionName) {
   const songs = songsByProvince[regionName] || [];
   if (activePanel) { activePanel.classList.remove('active-province'); activePanel = null; }
+  resetSearchAndFilters();
   digerBtn.classList.remove('active');
   // Deactivate other region buttons, activate this one
   document.querySelectorAll('.btn-region').forEach(b => b.classList.remove('active'));
@@ -375,25 +406,113 @@ function showRegionPanel(regionName) {
 }
 
 /* ── SEARCH ─────────────────────────────────────────────────────────────────── */
+
+// Active filter state
+const activeFilters = { makam: '', konu: '', usul: '' };
+
+function getSearchScopes() {
+  return Array.from(document.querySelectorAll('#search-scope input[name="scope"]:checked'))
+    .map(el => el.value);
+}
+
+function matchesSearch(song, q, scopes) {
+  if (!q) return true;
+  return scopes.some(field => {
+    const val = (song[field] || '').toLocaleLowerCase('tr-TR');
+    return val.includes(q);
+  });
+}
+
+function matchesFilters(song) {
+  if (activeFilters.makam && (song.makamsal_dizi || '').trim() !== activeFilters.makam) return false;
+  if (activeFilters.konu  && (song.konusu_turu  || '').trim() !== activeFilters.konu)  return false;
+  if (activeFilters.usul  && (song.usul         || '').trim() !== activeFilters.usul)  return false;
+  return true;
+}
+
+function hasActiveFilters() {
+  return activeFilters.makam || activeFilters.konu || activeFilters.usul;
+}
+
 function runSearch(query) {
   if (activePanel) { activePanel.classList.remove('active-province'); activePanel = null; }
   digerBtn.classList.remove('active');
   const q = query.toLocaleLowerCase('tr-TR');
-  const results = allSongs.filter(s =>
-    s.song_title.toLocaleLowerCase('tr-TR').includes(q)
-  );
-  let html = `<div class="search-results-header">
-    "<strong>${escapeHtml(query)}</strong>" — <strong>${results.length}</strong> sonuç
-  </div>`;
+  const scopes = getSearchScopes();
+  const results = allSongs.filter(s => matchesSearch(s, q, scopes) && matchesFilters(s));
+
+  const filterTags = buildFilterTags();
+  let html = `<div class="search-results-header">`;
+  if (query) html += `"<strong>${escapeHtml(query)}</strong>" `;
+  html += `— <strong>${results.length}</strong> sonuç`;
+  if (filterTags) html += `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;">${filterTags}</div>`;
+  html += `</div>`;
+
+  // Highlight only when the field being highlighted is in scopes
   html += results.length > 0
-    ? results.map(s => buildSongCard(s, query)).join('')
+    ? results.map(s => buildSongCard(s, query, scopes)).join('')
     : '<p class="empty-msg">Sonuç bulunamadı.</p>';
   selectedInfo.innerHTML = html;
   selectedInfo.scrollTop = 0;
 }
 
+function runFilterOnly() {
+  if (activePanel) { activePanel.classList.remove('active-province'); activePanel = null; }
+  digerBtn.classList.remove('active');
+  const results = allSongs.filter(s => matchesFilters(s));
+  const filterTags = buildFilterTags();
+  let html = `<div class="search-results-header">Filtre sonuçları — <strong>${results.length}</strong> türkü`;
+  if (filterTags) html += `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;">${filterTags}</div>`;
+  html += `</div>`;
+  html += results.length > 0
+    ? results.map(s => buildSongCard(s)).join('')
+    : '<p class="empty-msg">Sonuç bulunamadı.</p>';
+  selectedInfo.innerHTML = html;
+  selectedInfo.scrollTop = 0;
+}
+
+function buildFilterTags() {
+  const tags = [];
+  if (activeFilters.makam) tags.push(`<span class="filter-tag">Makam: ${escapeHtml(activeFilters.makam)}</span>`);
+  if (activeFilters.konu)  tags.push(`<span class="filter-tag">Konu: ${escapeHtml(activeFilters.konu)}</span>`);
+  if (activeFilters.usul)  tags.push(`<span class="filter-tag">Usul: ${escapeHtml(activeFilters.usul)}</span>`);
+  return tags.join('');
+}
+
+function updateFilterDot() {
+  const dot = document.getElementById('filter-active-dot');
+  if (dot) dot.classList.toggle('hidden', !hasActiveFilters());
+}
+
+function populateFilterDropdowns() {
+  const makamSet = new Set(), konuSet = new Set(), usulSet = new Set();
+  allSongs.forEach(s => {
+    if (fmt(s.makamsal_dizi)) makamSet.add(s.makamsal_dizi.trim());
+    if (fmt(s.konusu_turu))  konuSet.add(s.konusu_turu.trim());
+    if (fmt(s.usul))         usulSet.add(s.usul.trim());
+  });
+  fillSelect('filter-makam', [...makamSet].sort((a, b) => a.localeCompare(b, 'tr')));
+  fillSelect('filter-konu',  [...konuSet].sort((a, b) => a.localeCompare(b, 'tr')));
+  fillSelect('filter-usul',  [...usulSet].sort((a, b) => a.localeCompare(b, 'tr')));
+}
+
+function fillSelect(id, values) {
+  const sel = document.getElementById(id);
+  if (!sel) return;
+  values.forEach(v => {
+    const opt = document.createElement('option');
+    opt.value = v;
+    opt.textContent = v;
+    sel.appendChild(opt);
+  });
+}
+
 function clearSearch() {
-  selectedInfo.innerHTML = '<p class="empty-msg">Bir ilin üzerine gelin ve tıklayın…</p>';
+  if (hasActiveFilters()) {
+    runFilterOnly();
+  } else {
+    selectedInfo.innerHTML = '<p class="empty-msg">Bir ilin üzerine gelin ve tıklayın…</p>';
+  }
 }
 
 /* ── RANDOM TÜRKÜ ────────────────────────────────────────────────────────────── */
@@ -402,7 +521,7 @@ function showRandomSong() {
   const song = allSongs[Math.floor(Math.random() * allSongs.length)];
   if (activePanel) { activePanel.classList.remove('active-province'); activePanel = null; }
   digerBtn.classList.remove('active');
-  if (searchInput) { searchInput.value = ''; searchClear.classList.remove('visible'); }
+  resetSearchAndFilters();
   // Highlight city on map
   const svg = mapContainer.querySelector('svg');
   if (svg) {
@@ -642,7 +761,7 @@ function selectProvince(path, svgName) {
 
   digerBtn.classList.remove('active');
   document.querySelectorAll('.btn-region').forEach(b => b.classList.remove('active'));
-  if (searchInput) { searchInput.value = ''; searchClear.classList.remove('visible'); }
+  resetSearchAndFilters();
   const songs = getSongsFor(svgName);
   updateSidePanel(resolveName(svgName), songs);
   if (window.innerWidth <= 700) openDrawer();
@@ -689,13 +808,75 @@ document.addEventListener('DOMContentLoaded', async () => {
   searchInput.addEventListener('input', () => {
     const q = searchInput.value.trim();
     searchClear.classList.toggle('visible', q.length > 0);
-    q.length > 0 ? runSearch(q) : clearSearch();
+    if (q.length > 0) {
+      runSearch(q);
+    } else if (hasActiveFilters()) {
+      runFilterOnly();
+    } else {
+      clearSearch();
+    }
   });
   searchClear.addEventListener('click', () => {
     searchInput.value = '';
     searchClear.classList.remove('visible');
-    clearSearch();
+    if (hasActiveFilters()) {
+      runFilterOnly();
+    } else {
+      clearSearch();
+    }
     searchInput.focus();
+  });
+
+  // Filter toggle button
+  const filterToggleBtn = document.getElementById('filter-toggle');
+  const filterPanel     = document.getElementById('filter-panel');
+  filterToggleBtn?.addEventListener('click', () => {
+    const open = !filterPanel.classList.contains('hidden');
+    filterPanel.classList.toggle('hidden', open);
+    filterToggleBtn.classList.toggle('active', !open);
+    filterToggleBtn.setAttribute('aria-expanded', String(!open));
+  });
+
+  // Scope chips — re-run search when scope changes
+  document.querySelectorAll('#search-scope input[name="scope"]').forEach(cb => {
+    cb.addEventListener('change', () => {
+      const q = searchInput.value.trim();
+      if (q) runSearch(q);
+    });
+  });
+
+  // Filter selects
+  document.getElementById('filter-makam')?.addEventListener('change', e => {
+    activeFilters.makam = e.target.value;
+    updateFilterDot();
+    const q = searchInput.value.trim();
+    q ? runSearch(q) : (hasActiveFilters() ? runFilterOnly() : clearSearch());
+  });
+  document.getElementById('filter-konu')?.addEventListener('change', e => {
+    activeFilters.konu = e.target.value;
+    updateFilterDot();
+    const q = searchInput.value.trim();
+    q ? runSearch(q) : (hasActiveFilters() ? runFilterOnly() : clearSearch());
+  });
+  document.getElementById('filter-usul')?.addEventListener('change', e => {
+    activeFilters.usul = e.target.value;
+    updateFilterDot();
+    const q = searchInput.value.trim();
+    q ? runSearch(q) : (hasActiveFilters() ? runFilterOnly() : clearSearch());
+  });
+
+  // Filter reset
+  document.getElementById('filter-reset')?.addEventListener('click', () => {
+    activeFilters.makam = '';
+    activeFilters.konu  = '';
+    activeFilters.usul  = '';
+    ['filter-makam','filter-konu','filter-usul'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.value = '';
+    });
+    updateFilterDot();
+    const q = searchInput.value.trim();
+    q ? runSearch(q) : clearSearch();
   });
 
   // Drawer (mobile)
@@ -751,6 +932,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   songsByProvince = processData(rawArray);
   allSongs = rawArray;
+
+  populateFilterDropdowns();
 
   const totalEl = document.getElementById('total-count');
   if (totalEl) totalEl.textContent = rawArray.length;

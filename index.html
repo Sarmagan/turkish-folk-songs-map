@@ -460,8 +460,58 @@
 
       <!-- Search box -->
       <div id="search-bar">
-        <input id="search-input" type="text" placeholder="Türkü ara…" autocomplete="off" />
-        <button id="search-clear" title="Temizle" aria-label="Temizle">✕</button>
+        <div id="search-row">
+          <input id="search-input" type="text" placeholder="Türkü ara…" autocomplete="off" />
+          <button id="search-clear" title="Temizle" aria-label="Temizle">✕</button>
+          <button id="filter-toggle" title="Filtrele" aria-label="Filtrele" aria-expanded="false">
+            <span id="filter-icon">⚙</span>
+            <span id="filter-active-dot" class="filter-active-dot hidden"></span>
+          </button>
+        </div>
+
+        <!-- Search scope chips -->
+        <div id="search-scope">
+          <span class="scope-label">Arama alanı:</span>
+          <label class="scope-chip">
+            <input type="checkbox" name="scope" value="song_title" checked />
+            <span>Başlık</span>
+          </label>
+          <label class="scope-chip">
+            <input type="checkbox" name="scope" value="kaynak_kisi" />
+            <span>Kaynak Kişi</span>
+          </label>
+          <label class="scope-chip">
+            <input type="checkbox" name="scope" value="derleyen" />
+            <span>Derleyen</span>
+          </label>
+          <label class="scope-chip">
+            <input type="checkbox" name="scope" value="icra_eden" />
+            <span>İcra Eden</span>
+          </label>
+        </div>
+
+        <!-- Filter panel -->
+        <div id="filter-panel" class="filter-panel hidden">
+          <div class="filter-row">
+            <label class="filter-label" for="filter-makam">Makam / Dizi</label>
+            <select id="filter-makam" class="filter-select">
+              <option value="">Tümü</option>
+            </select>
+          </div>
+          <div class="filter-row">
+            <label class="filter-label" for="filter-konu">Konu / Tür</label>
+            <select id="filter-konu" class="filter-select">
+              <option value="">Tümü</option>
+            </select>
+          </div>
+          <div class="filter-row">
+            <label class="filter-label" for="filter-usul">Usul</label>
+            <select id="filter-usul" class="filter-select">
+              <option value="">Tümü</option>
+            </select>
+          </div>
+          <button id="filter-reset" class="filter-reset-btn">Filtreleri Temizle</button>
+        </div>
       </div>
 
       <!-- Song list for selected province or search results -->
